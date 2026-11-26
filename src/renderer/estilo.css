@@ -1,0 +1,68 @@
+/* Visual simples: só preto e branco, sem bordas arredondadas e sem animações. */
+* { box-sizing: border-box; border-radius: 0; }
+
+body { margin: 0; font-family: Arial, Helvetica, sans-serif; font-size: 15px; color: #000; background: #fff; }
+h1, h2, h3 { margin-top: 0; }
+h2 { border-bottom: 2px solid #000; padding-bottom: 8px; }
+
+/* ---------- Estrutura da tela principal ---------- */
+.layout { display: flex; height: 100vh; }
+.menu { width: 230px; background: #000; color: #fff; padding: 16px; display: flex; flex-direction: column; overflow-y: auto; }
+.menu h1 { font-size: 18px; margin-bottom: 4px; }
+.menu .usuario { font-size: 13px; margin-bottom: 16px; border-bottom: 1px solid #fff; padding-bottom: 12px; }
+.menu button { display: block; width: 100%; text-align: left; background: #000; color: #fff; border: none; padding: 10px 8px; font-size: 15px; cursor: pointer; }
+.menu button:hover, .menu button.ativo { background: #fff; color: #000; }
+.menu .espaco { flex: 1; }
+.menu button.sair { border: 1px solid #fff; margin-top: 12px; text-align: center; }
+.conteudo { flex: 1; overflow: auto; padding: 24px; }
+
+/* ---------- Tabelas ---------- */
+table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+th, td { border: 1px solid #000; padding: 6px 8px; text-align: left; vertical-align: top; }
+th { background: #000; color: #fff; border-color: #fff; }
+tr.atrasado td { background: #000; color: #fff; font-weight: bold; border-color: #fff; }
+tr.destaque td { font-weight: bold; }
+td.acoes { white-space: nowrap; }
+.vazio { border: 1px dashed #000; padding: 16px; text-align: center; }
+
+/* ---------- Botões e campos ---------- */
+button { background: #fff; color: #000; border: 1px solid #000; padding: 6px 12px; cursor: pointer; font-size: 14px; }
+button:hover { background: #000; color: #fff; }
+button.principal { background: #000; color: #fff; }
+button.principal:hover { background: #fff; color: #000; }
+input, select, textarea { width: 100%; border: 1px solid #000; padding: 7px; font-size: 14px; background: #fff; color: #000; font-family: inherit; }
+label { display: block; font-weight: bold; margin-bottom: 4px; }
+.campo { margin-bottom: 12px; }
+.ajuda { font-size: 12px; margin-top: 2px; }
+.grade { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; max-width: 800px; }
+.grade .largo { grid-column: 1 / -1; }
+.linha-isbn { display: flex; gap: 8px; }
+.linha-isbn input { flex: 1; }
+.barra { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+.barra input, .barra select { width: 320px; }
+form .botoes { display: flex; gap: 8px; margin-top: 8px; }
+
+/* ---------- Avisos ---------- */
+.alerta { background: #000; color: #fff; padding: 12px; margin-bottom: 16px; font-weight: bold; font-size: 16px; }
+.aviso { border: 2px solid #000; padding: 10px; margin: 12px 0; }
+.cartoes { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.cartao { border: 2px solid #000; padding: 12px 22px; }
+.cartao strong { display: block; font-size: 28px; }
+.etiqueta { border: 1px solid currentColor; padding: 0 6px; font-size: 12px; font-weight: bold; margin-left: 4px; }
+.capa { width: 40px; height: 58px; object-fit: cover; border: 1px solid #000; display: block; }
+.previa-capa { width: 90px; height: 130px; object-fit: cover; border: 1px solid #000; margin-bottom: 8px; }
+
+/* ---------- Mensagem rápida (canto da tela) ---------- */
+.mensagem { position: fixed; right: 16px; bottom: 16px; max-width: 420px; padding: 12px 16px; border: 2px solid #000; background: #fff; color: #000; display: none; z-index: 20; }
+.mensagem.visivel { display: block; }
+.mensagem.erro { background: #000; color: #fff; border-color: #fff; }
+
+/* ---------- Caixa de confirmação ---------- */
+.fundo-confirmacao { position: fixed; inset: 0; background: rgba(255, 255, 255, 0.85); display: flex; align-items: center; justify-content: center; z-index: 30; }
+.caixa-confirmacao { background: #fff; border: 2px solid #000; padding: 20px; max-width: 420px; }
+.caixa-confirmacao button { margin-right: 8px; }
+
+/* ---------- Tela de login ---------- */
+body.centralizado { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+.caixa-login { border: 2px solid #000; padding: 28px; width: 380px; }
+.form-estreito { max-width: 460px; }

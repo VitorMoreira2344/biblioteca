@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.main.json",
+  "compilerOptions": { "rootDir": ".", "outDir": "dist/testes" },
+  "include": ["tests/**/*.ts", "src/main/**/*.ts", "src/tipos/tipos.d.ts"],
+  "exclude": ["src/main/main.ts", "src/main/preload.ts", "src/main/JanelaPrincipal.ts", "src/main/ipc/**/*.ts"]
+}

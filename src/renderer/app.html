@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- CSP: scripts só da aplicação; imagens (capas dos livros) podem vir de https -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' https: data:" />
+    <title>Biblioteca Comunitária</title>
+    <link rel="stylesheet" href="estilo.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="menu">
+        <h1>Biblioteca</h1>
+        <div class="usuario" id="usuarioLogado"></div>
+        <nav id="menu"></nav>
+        <div class="espaco"></div>
+        <button class="sair" id="btnSair">Sair</button>
+      </aside>
+      <main class="conteudo" id="conteudo"></main>
+    </div>
+    <div id="mensagem" class="mensagem"></div>
+
+    <script src="../../dist/renderer/js/Util.js"></script>
+    <script src="../../dist/renderer/js/Servidor.js"></script>
+    <script src="../../dist/renderer/js/TelaBase.js"></script>
+    <script src="../../dist/renderer/js/TelaCrud.js"></script>
+    <script src="../../dist/renderer/js/TelaInicio.js"></script>
+    <script src="../../dist/renderer/js/TelaAutores.js"></script>
+    <script src="../../dist/renderer/js/TelaEditoras.js"></script>
+    <script src="../../dist/renderer/js/TelaUsuariosSistema.js"></script>
+    <script src="../../dist/renderer/js/TelaLivros.js"></script>
+    <script src="../../dist/renderer/js/TelaUsuarios.js"></script>
+    <script src="../../dist/renderer/js/TelaEmprestimos.js"></script>
+    <script src="../../dist/renderer/js/TelaReservas.js"></script>
+    <script src="../../dist/renderer/js/Aplicacao.js"></script>
+  </body>
+</html>
