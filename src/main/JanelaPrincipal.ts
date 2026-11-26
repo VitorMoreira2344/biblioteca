@@ -2,14 +2,16 @@ import { BrowserWindow, Menu, shell } from "electron";
 import * as path from "path";
 import { Configuracao } from "./config/Configuracao";
 
-// Cria e controla a janela do programa.
+// cria e cuida da janela do programa
 export class JanelaPrincipal {
   private janela: BrowserWindow;
-  // Só estas páginas podem ser abertas dentro da janela.
+  // so essas duas paginas podem abrir
   private static readonly PAGINAS_PERMITIDAS = ["login.html", "app.html"];
 
+  // monta a janela com as protecoes ligadas
   constructor(private pastaDoProjeto: string) {
-    Menu.setApplicationMenu(null); // sem menu padrão do Electron
+    // tira o menu de cima
+    Menu.setApplicationMenu(null);
 
     this.janela = new BrowserWindow({
       width: 1200,
@@ -18,34 +20,36 @@ export class JanelaPrincipal {
       minHeight: 600,
       title: "Biblioteca Comunitária",
       backgroundColor: "#ffffff",
+      // tela isolada sem node e em sandbox pra ficar seguro
       webPreferences: {
         preload: path.join(__dirname, "preload.js"),
-        contextIsolation: true, // a tela roda isolada do preload
-        nodeIntegration: false, // a tela NÃO tem acesso ao Node.js
+        contextIsolation: true,
+        nodeIntegration: false,
         sandbox: true,
         devTools: Configuracao.modoDev,
       },
     });
 
+    // liga as protecoes abre o login e o devtools se for modo dev
     this.protegerNavegacao();
     this.carregarPagina("login.html");
     if (Configuracao.modoDev) this.janela.webContents.openDevTools();
   }
 
-  // Impede que a janela abra sites externos ou outras páginas por engano/ataque.
+  // bloqueia navegar pra qualquer lugar que nao seja nossas paginas
   private protegerNavegacao(): void {
     this.janela.webContents.on("will-navigate", (evento, url) => {
       const permitida = JanelaPrincipal.PAGINAS_PERMITIDAS.some((pagina) => url.startsWith("file://") && url.endsWith(pagina));
       if (!permitida) evento.preventDefault();
     });
-    // Links que abririam nova janela: abre no navegador do sistema (só https) e bloqueia o resto.
+    // link https abre no navegador e nenhuma janela nova abre dentro do app
     this.janela.webContents.setWindowOpenHandler(({ url }) => {
       if (url.startsWith("https://")) shell.openExternal(url);
       return { action: "deny" };
     });
   }
 
-  // Carrega uma página da pasta src/renderer.
+  // abre uma pagina da pasta renderer
   carregarPagina(nome: string): void {
     this.janela.loadFile(path.join(this.pastaDoProjeto, "src", "renderer", nome));
   }

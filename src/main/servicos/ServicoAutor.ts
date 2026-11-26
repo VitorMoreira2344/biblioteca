@@ -2,14 +2,14 @@ import { Banco } from "../banco/Banco";
 import { Validador } from "../util/Validador";
 import { ErroNegocio } from "../util/ErroNegocio";
 
-// CRUD de AUTORES.
+// crud dos autores
 export class ServicoAutor {
-  // READ: lista todos os autores em ordem alfabética.
+  // lista todos os autores em ordem de nome
   static async listar(): Promise<Autor[]> {
     return Banco.consultar<Autor>("SELECT id, nome, nacionalidade FROM autor ORDER BY nome");
   }
 
-  // Valida os campos que vieram da tela.
+  // confere o nome e a nacionalidade que vieram da tela
   private static validar(dados: any): { nome: string; nacionalidade: string | null } {
     return {
       nome: Validador.texto(dados?.nome, "Nome", 120)!,
@@ -17,13 +17,13 @@ export class ServicoAutor {
     };
   }
 
-  // Impede dois autores com o mesmo nome.
+  // nao deixa ter dois autores com o mesmo nome
   private static async garantirNomeUnico(nome: string, idIgnorado: number): Promise<void> {
     const repetidos = await Banco.consultar("SELECT id FROM autor WHERE nome = ? AND id <> ?", [nome, idIgnorado]);
     if (repetidos.length) throw new ErroNegocio("Já existe um autor com esse nome.");
   }
 
-  // CREATE: cadastra um autor.
+  // cria um autor novo
   static async criar(dados: any): Promise<{ id: number }> {
     const autor = ServicoAutor.validar(dados);
     await ServicoAutor.garantirNomeUnico(autor.nome, 0);
@@ -34,7 +34,7 @@ export class ServicoAutor {
     return { id: resultado.insertId };
   }
 
-  // UPDATE: altera um autor (note o WHERE id = ?, senão mudaria todos).
+  // edita um autor que ja existe
   static async atualizar(dados: any): Promise<void> {
     const id = Validador.inteiro(dados?.id, "Autor");
     const autor = ServicoAutor.validar(dados);
@@ -46,7 +46,7 @@ export class ServicoAutor {
     ]);
   }
 
-  // DELETE: exclui um autor, se nenhum livro usar ele.
+  // apaga o autor mas so se ele nao ta em nenhum livro
   static async excluir(idBruto: unknown): Promise<void> {
     const id = Validador.inteiro(idBruto, "Autor");
     const usos = await Banco.consultar<{ total: number }>("SELECT COUNT(*) AS total FROM livro_autor WHERE autor_id = ?", [id]);

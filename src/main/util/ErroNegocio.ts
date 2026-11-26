@@ -1,6 +1,4 @@
-// Erro "esperado": uma regra do sistema foi violada (ex.: CPF inválido).
-// A mensagem pode ser mostrada ao usuário. Qualquer outro erro vira
-// "erro interno" (para não vazar detalhes técnicos).
+// erro de regra do sistema tipo cpf repetido ou livro ja emprestado e a mensagem pode ir pra tela
 export class ErroNegocio extends Error {
   constructor(mensagem: string) {
     super(mensagem);
@@ -8,7 +6,7 @@ export class ErroNegocio extends Error {
   }
 }
 
-// Erro de rede ao falar com uma API externa (fora do ar, timeout...).
+// erro quando alguma api de fora falha ou nao responde
 export class ErroApi extends Error {
   constructor(mensagem: string) {
     super(mensagem);

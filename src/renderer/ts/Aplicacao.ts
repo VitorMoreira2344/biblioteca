@@ -1,10 +1,10 @@
-// Controla a tela principal: menu lateral, qual tela está aberta e o contador de atrasados.
+// controla a tela principal com o menu
 class Aplicacao {
-  // Guarda a instância única (as telas usam para atualizar o aviso do menu).
   static atual: Aplicacao;
 
   private telaAberta: TelaBase | null = null;
   private perfil: PerfilAcesso = "bibliotecario";
+  // itens do menu e o ultimo so o admin ve
   private itensMenu: { id: string; rotulo: string; soAdmin?: boolean }[] = [
     { id: "inicio", rotulo: "Início" },
     { id: "emprestimos", rotulo: "Empréstimos" },
@@ -16,25 +16,28 @@ class Aplicacao {
     { id: "usuariosSistema", rotulo: "Usuários do sistema", soAdmin: true },
   ];
 
+  // guarda essa aplicacao pra outras telas acharem
   constructor() {
     Aplicacao.atual = this;
   }
 
-  // Confere se há alguém logado e abre a tela inicial.
+  // ve quem ta logado e se ninguem volta pro login
   async iniciar(): Promise<void> {
     const sessao = await Servidor.chamar<{ nome: string; perfil: PerfilAcesso } | null>("acesso:sessao");
     if (!sessao) {
-      window.location.href = "login.html"; // sem login não entra
+      window.location.href = "login.html";
       return;
     }
     this.perfil = sessao.perfil;
     Util.porId("usuarioLogado").textContent = `${sessao.nome} (${sessao.perfil === "administrador" ? "administrador" : "bibliotecário"})`;
     this.desenharMenu();
 
+    // clique no menu abre a tela
     Util.porId("menu").addEventListener("click", (e) => {
       const botao = (e.target as HTMLElement).closest<HTMLElement>("[data-tela]");
       if (botao) this.abrirTela(botao.dataset.tela!);
     });
+    // botao sair faz logout e volta pro login
     Util.porId("btnSair").addEventListener("click", async () => {
       await Servidor.chamar("acesso:sair");
       window.location.href = "login.html";
@@ -43,7 +46,7 @@ class Aplicacao {
     await this.abrirTela("inicio");
   }
 
-  // Desenha os botões do menu (esconde os que são só do administrador).
+  // desenha os botoes do menu de acordo com o perfil
   private desenharMenu(): void {
     Util.porId("menu").innerHTML = this.itensMenu
       .filter((item) => !item.soAdmin || this.perfil === "administrador")
@@ -51,10 +54,10 @@ class Aplicacao {
       .join("");
   }
 
-  // Cria a tela pedida dentro da área de conteúdo.
+  // limpa a area e abre a tela escolhida
   async abrirTela(id: string): Promise<void> {
     const area = Util.porId("conteudo");
-    area.innerHTML = ""; // cada tela nasce em uma área nova (descarta os "ouvintes" da anterior)
+    area.innerHTML = "";
     const raiz = document.createElement("div");
     area.appendChild(raiz);
 
@@ -71,6 +74,7 @@ class Aplicacao {
     };
     if (!telas[id]) return;
 
+    // marca o botao do menu da tela aberta
     document.querySelectorAll("#menu button").forEach((b) => b.classList.toggle("ativo", (b as HTMLElement).dataset.tela === id));
     this.telaAberta = telas[id]();
     try {
@@ -81,16 +85,17 @@ class Aplicacao {
     await this.atualizarAviso();
   }
 
-  // Mostra no menu quantos empréstimos estão atrasados.
+  // mostra no menu quantos emprestimos tao atrasados
   async atualizarAviso(): Promise<void> {
     try {
       const resumo = await Servidor.chamar<ResumoPainel>("painel:resumo");
       const botao = document.getElementById("menu_emprestimos");
       if (botao) botao.textContent = resumo.atrasados.length ? `Empréstimos (${resumo.atrasados.length} ATRASADO${resumo.atrasados.length > 1 ? "S" : ""})` : "Empréstimos";
     } catch {
-      // se falhar, só não atualiza o contador
+      // se falhar so deixa o menu como ta
     }
   }
 }
 
+// comeca o app quando a pagina carrega
 new Aplicacao().iniciar().catch((erro) => Util.mensagem(erro.message, true));

@@ -1,18 +1,19 @@
+// peguei da brasilapi que e um projeto aberto feito pela comunidade de graca e sem chave
 import { ClienteHttp } from "./ClienteHttp";
 import { Datas } from "../util/Datas";
 
+// formato do feriado que a brasilapi devolve
 interface Feriado {
   date: string;
   name: string;
 }
 
-// API 3 - FERIADOS NACIONAIS (BrasilAPI).
-// Finalidade: o prazo de devolução não pode cair em feriado (a biblioteca
-// não abre). Se cair, o sistema empurra para o próximo dia livre.
+// busca feriados na brasilapi pro prazo nao cair em feriado
 export class ApiFeriados {
-  private static cache = new Map<number, Feriado[]>(); // evita consultar o mesmo ano várias vezes
+  // guarda os feriados de cada ano pra nao ficar pedindo de novo
+  private static cache = new Map<number, Feriado[]>();
 
-  // Lista os feriados de um ano (devolve [] se a API falhar).
+  // devolve os feriados do ano e se a api cair devolve lista vazia
   static async doAno(ano: number): Promise<Feriado[]> {
     const guardado = ApiFeriados.cache.get(ano);
     if (guardado) return guardado;
@@ -21,14 +22,15 @@ export class ApiFeriados {
       ApiFeriados.cache.set(ano, lista);
       return lista;
     } catch {
-      return []; // sem internet: seguimos sem ajustar (não trava o empréstimo)
+      return [];
     }
   }
 
-  // Recebe uma data e devolve a primeira data que NÃO é feriado.
+  // se a data cair em feriado empurra pro proximo dia livre e conta o motivo
   static async proximoDiaLivre(dataIso: string): Promise<{ data: string; ajustada: boolean; motivo: string | null }> {
     let data = dataIso;
     const motivos: string[] = [];
+    // tenta no maximo 7 dias pra frente
     for (let tentativa = 0; tentativa < 7; tentativa++) {
       const feriados = await ApiFeriados.doAno(Number(data.slice(0, 4)));
       const feriado = feriados.find((f) => f.date === data);

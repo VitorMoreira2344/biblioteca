@@ -1,16 +1,14 @@
 import { ErroNegocio } from "./ErroNegocio";
 import { Datas } from "./Datas";
 
-// Validação de entradas. Toda informação que vem da tela passa por aqui
-// ANTES de ir ao banco (nunca confiamos no que o renderer manda).
+// confere tudo que chega da tela antes de usar porque a tela pode mentir
 export class Validador {
-  // Deixa só os números de um texto: "123.456-78" -> "12345678".
+  // tira tudo que nao e numero
   static somenteDigitos(texto: unknown): string {
     return String(texto ?? "").replace(/\D/g, "");
   }
 
-  // Valida um texto: tira espaços das pontas, confere obrigatório e tamanho máximo.
-  // Devolve null quando o campo é opcional e está vazio.
+  // texto com limite de tamanho e se e obrigatorio ou nao
   static texto(valor: unknown, nomeCampo: string, maximo: number, obrigatorio = true): string | null {
     const texto = String(valor ?? "").trim();
     if (!texto) {
@@ -23,7 +21,7 @@ export class Validador {
     return texto;
   }
 
-  // Valida um número inteiro positivo (usado para ids).
+  // numero inteiro maior que zero tipo um id
   static inteiro(valor: unknown, nomeCampo: string): number {
     const numero = Number(valor);
     if (!Number.isInteger(numero) || numero <= 0) {
@@ -32,7 +30,7 @@ export class Validador {
     return numero;
   }
 
-  // Número inteiro opcional dentro de um intervalo (ex.: ano de publicação).
+  // numero que pode ficar vazio mas se vier tem que estar entre o minimo e o maximo
   static inteiroOpcional(valor: unknown, nomeCampo: string, minimo: number, maximo: number): number | null {
     if (valor === null || valor === undefined || String(valor).trim() === "") return null;
     const numero = Number(valor);
@@ -42,13 +40,13 @@ export class Validador {
     return numero;
   }
 
-  // Valida uma data "aaaa-mm-dd".
+  // data valida no formato ano-mes-dia
   static data(valor: unknown, nomeCampo: string): string {
     if (!Datas.ehValida(valor)) throw new ErroNegocio(`Data inválida em "${nomeCampo}".`);
     return valor;
   }
 
-  // Confere o formato do e-mail (simples, mas suficiente para evitar erros de digitação).
+  // email com cara de email e tudo minusculo
   static email(valor: unknown): string {
     const email = String(valor ?? "").trim().toLowerCase();
     if (email.length > 150 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
@@ -57,7 +55,7 @@ export class Validador {
     return email;
   }
 
-  // Telefone com DDD (10 ou 11 dígitos). Opcional.
+  // telefone com ddd e 10 ou 11 numeros e pode ficar vazio
   static telefone(valor: unknown): string | null {
     const digitos = Validador.somenteDigitos(valor);
     if (!digitos) return null;
@@ -67,21 +65,21 @@ export class Validador {
     return digitos;
   }
 
-  // CEP: exatamente 8 dígitos.
+  // cep com 8 numeros
   static cep(valor: unknown): string {
     const cep = Validador.somenteDigitos(valor);
     if (cep.length !== 8) throw new ErroNegocio("CEP inválido. Informe 8 dígitos.");
     return cep;
   }
 
-  // CPF: confere os 11 dígitos e os dois dígitos verificadores.
+  // cpf que passa na conta dos digitos
   static cpf(valor: unknown): string {
     const cpf = Validador.somenteDigitos(valor);
     if (!Validador.cpfValido(cpf)) throw new ErroNegocio("CPF inválido.");
     return cpf;
   }
 
-  // Faz a conta oficial do CPF (módulo 11).
+  // faz a conta dos dois digitos verificadores do cpf e barra cpf tipo 111
   static cpfValido(cpf: string): boolean {
     if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
     const calcular = (quantidade: number): number => {
@@ -93,12 +91,12 @@ export class Validador {
     return calcular(9) === Number(cpf[9]) && calcular(10) === Number(cpf[10]);
   }
 
-  // Tira hífens e espaços do ISBN: "978-85-333-0227-3" -> "9788533302273".
+  // tira espaco e traco do isbn
   static normalizarIsbn(valor: unknown): string {
     return String(valor ?? "").replace(/[\s-]/g, "").toUpperCase();
   }
 
-  // ISBN válido = ISBN-10 ou ISBN-13 com dígito verificador correto.
+  // confere o digito final do isbn de 13 ou de 10
   static isbnValido(isbn: string): boolean {
     if (/^\d{13}$/.test(isbn)) {
       let soma = 0;
@@ -114,7 +112,7 @@ export class Validador {
     return false;
   }
 
-  // Valida o ISBN vindo da tela (opcional: devolve null se vazio).
+  // isbn valido ou vazio se nao for obrigatorio
   static isbn(valor: unknown, obrigatorio = false): string | null {
     const isbn = Validador.normalizarIsbn(valor);
     if (!isbn) {
@@ -125,7 +123,7 @@ export class Validador {
     return isbn;
   }
 
-  // Regra de senha: mínimo 8 caracteres, com pelo menos uma letra e um número.
+  // senha com 8 ou mais caracteres com letra e numero
   static senha(valor: unknown): string {
     const senha = String(valor ?? "");
     if (senha.length < 8 || senha.length > 100 || !/[A-Za-z]/.test(senha) || !/\d/.test(senha)) {
@@ -134,7 +132,7 @@ export class Validador {
     return senha;
   }
 
-  // Tira acentos e deixa minúsculo, para comparar textos ("São Paulo" == "sao paulo").
+  // tira acento e deixa minusculo pra comparar nomes
   static normalizarTexto(texto: string): string {
     return texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
   }

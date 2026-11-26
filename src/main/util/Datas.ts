@@ -1,12 +1,11 @@
-// Funções de data. Trabalhamos sempre com texto "aaaa-mm-dd" (formato do
-// campo DATE do MySQL), assim não existe problema de fuso horário.
+// ajudantes pra mexer com datas no formato ano-mes-dia
 export class Datas {
-  // Devolve a data de hoje, ex.: "2026-11-26".
+  // data de hoje
   static hoje(): string {
     return Datas.formatar(new Date());
   }
 
-  // Converte um objeto Date para "aaaa-mm-dd" (usando o horário local).
+  // transforma um date em texto ano-mes-dia
   static formatar(data: Date): string {
     const ano = data.getFullYear();
     const mes = String(data.getMonth() + 1).padStart(2, "0");
@@ -14,13 +13,13 @@ export class Datas {
     return `${ano}-${mes}-${dia}`;
   }
 
-  // Soma (ou subtrai, se negativo) dias a uma data "aaaa-mm-dd".
+  // soma ou tira dias de uma data
   static somarDias(iso: string, dias: number): string {
     const [ano, mes, dia] = iso.split("-").map(Number);
     return Datas.formatar(new Date(ano, mes - 1, dia + dias));
   }
 
-  // Confere se o texto é uma data real (rejeita "2026-02-31", por exemplo).
+  // confere se a data existe mesmo tipo nada de 31 de fevereiro
   static ehValida(iso: unknown): iso is string {
     if (typeof iso !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return false;
     const [ano, mes, dia] = iso.split("-").map(Number);
@@ -28,7 +27,7 @@ export class Datas {
     return data.getFullYear() === ano && data.getMonth() === mes - 1 && data.getDate() === dia;
   }
 
-  // Quantos dias existem entre duas datas (fim - inicio).
+  // quantos dias tem entre duas datas
   static diasEntre(inicio: string, fim: string): number {
     const [a1, m1, d1] = inicio.split("-").map(Number);
     const [a2, m2, d2] = fim.split("-").map(Number);
@@ -36,7 +35,7 @@ export class Datas {
     return Math.round(ms / 86400000);
   }
 
-  // "2026-11-26" -> "26/11/2026" (formato brasileiro para mostrar na tela e nos e-mails).
+  // mostra a data no jeito brasileiro dia/mes/ano
   static paraBR(iso: string | null): string {
     if (!iso) return "";
     const [ano, mes, dia] = iso.split("-");

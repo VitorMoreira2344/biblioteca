@@ -6,38 +6,39 @@ import { Configuracao } from "../config/Configuracao";
 import { ApiCep, EnderecoCep } from "../apis/ApiCep";
 import { ApiGeolocalizacao } from "../apis/ApiGeolocalizacao";
 
-// CRUD dos USUÁRIOS DA BIBLIOTECA (os leitores) + consulta de CEP e distância.
+// crud dos leitores com cpf cifrado e cep
 export class ServicoUsuario {
+  // colunas que a gente le do leitor
   private static readonly COLUNAS =
     "id, nome, cpf_cifrado, email, telefone, cep, logradouro, numero, complemento, bairro, cidade, uf, distancia_km";
 
-  // Transforma a linha do banco em Usuario: decifra o CPF e mostra só a versão mascarada.
+  // decifra o cpf e mostra mascarado e completo so quando pede
   private static montar(linha: any, incluirCpf: boolean): Usuario {
     const { cpf_cifrado, ...resto } = linha;
     let cpf = "";
     try {
       cpf = Seguranca.decifrar(cpf_cifrado);
     } catch {
-      // chave errada ou dado alterado: não derruba a lista inteira
+      // se a chave mudou nao da pra ler o cpf entao fica ilegivel
     }
     const usuario: Usuario = { ...resto, cpf_mascarado: cpf ? Seguranca.mascararCpf(cpf) : "(ilegível)" };
     if (incluirCpf) usuario.cpf = cpf;
     return usuario;
   }
 
-  // Escreve o endereço em uma linha só: "Rua A, 10 - Centro, Cidade/UF".
+  // junta o endereco num texto so
   static formatarEndereco(u: { logradouro: string; numero: string; complemento?: string | null; bairro?: string | null; cidade: string; uf: string }): string {
     const rua = `${u.logradouro}, ${u.numero}${u.complemento ? " (" + u.complemento + ")" : ""}`;
     return `${rua}${u.bairro ? " - " + u.bairro : ""}, ${u.cidade}/${u.uf}`;
   }
 
-  // READ: lista os leitores (CPF mascarado).
+  // lista os leitores com cpf escondido
   static async listar(): Promise<Usuario[]> {
     const linhas = await Banco.consultar(`SELECT ${ServicoUsuario.COLUNAS} FROM usuario ORDER BY nome`);
     return linhas.map((l) => ServicoUsuario.montar(l, false));
   }
 
-  // READ: um leitor com o CPF completo (para a tela de edição).
+  // pega um leitor com o cpf completo pra editar
   static async obter(idBruto: unknown): Promise<Usuario> {
     const id = Validador.inteiro(idBruto, "Usuário");
     const linhas = await Banco.consultar(`SELECT ${ServicoUsuario.COLUNAS} FROM usuario WHERE id = ?`, [id]);
@@ -45,7 +46,7 @@ export class ServicoUsuario {
     return ServicoUsuario.montar(linhas[0], true);
   }
 
-  // Valida todos os campos que vieram da tela.
+  // confere todos os campos do leitor
   private static validar(dados: any) {
     const uf = Validador.texto(dados?.uf, "UF", 2)!.toUpperCase();
     if (!/^[A-Z]{2}$/.test(uf)) throw new ErroNegocio("UF inválida.");
@@ -64,16 +65,18 @@ export class ServicoUsuario {
     };
   }
 
-  // Compara com o endereço da biblioteca: mesmo bairro? a quantos km?
+  // ve se o leitor mora perto da biblioteca
   private static async avaliarRegiao(end: EnderecoCep): Promise<Omit<ResultadoCep, "status" | "endereco">> {
     const biblioteca = await ApiGeolocalizacao.localDaBiblioteca();
     if (!biblioteca) {
       return { distanciaKm: null, mesmoBairro: false, dentroDaRegiao: null, aviso: "Região não verificada (configure BIBLIOTECA_CEP no .env)." };
     }
 
+    // primeiro olha se e o mesmo bairro e cidade
     const igual = (a: string, b: string) => a !== "" && Validador.normalizarTexto(a) === Validador.normalizarTexto(b);
     const mesmoBairro = igual(end.cidade, biblioteca.endereco.cidade) && igual(end.bairro, biblioteca.endereco.bairro);
 
+    // depois tenta medir a distancia pelo mapa
     let distanciaKm: number | null = null;
     try {
       const casa = await ApiGeolocalizacao.coordenadas(end.logradouro, end.bairro, end.cidade, end.uf);
@@ -81,9 +84,10 @@ export class ServicoUsuario {
         distanciaKm = Math.round(ApiGeolocalizacao.distanciaKm(casa, biblioteca.coordenadas) * 100) / 100;
       }
     } catch {
-      distanciaKm = null; // serviço de mapa fora do ar: seguimos sem distância
+      distanciaKm = null;
     }
 
+    // monta o aviso de dentro ou fora da regiao
     const raio = Configuracao.raioRegiaoKm;
     let dentroDaRegiao: boolean | null = null;
     let aviso: string;
@@ -101,7 +105,7 @@ export class ServicoUsuario {
     return { distanciaKm, mesmoBairro, dentroDaRegiao, aviso };
   }
 
-  // Usado pela tela: digitou o CEP -> devolve endereço + se mora perto da biblioteca.
+  // busca o cep no viacep e ja diz se a pessoa e da regiao
   static async consultarCep(dados: any): Promise<ResultadoCep> {
     const cep = Validador.cep(dados?.cep);
     let endereco: EnderecoCep | null;
@@ -118,26 +122,26 @@ export class ServicoUsuario {
     return { status: "ok", endereco, ...regiao };
   }
 
-  // Confere se o CEP existe e calcula a distância. Devolve a distância atual se não der para calcular.
+  // confere se o cep existe e calcula a distancia e se a api cair mantem o valor de antes
   private static async calcularDistancia(v: { cep: string; logradouro: string; bairro: string | null; cidade: string; uf: string }, atual: number | null): Promise<number | null> {
     let existe: EnderecoCep | null;
     try {
       existe = await ApiCep.consultar(v.cep);
     } catch {
-      return atual; // ViaCEP fora do ar: não trava o cadastro
+      return atual;
     }
     if (!existe) throw new ErroNegocio("CEP inexistente. Confira o número digitado.");
     const regiao = await ServicoUsuario.avaliarRegiao({ logradouro: v.logradouro, bairro: v.bairro ?? "", cidade: v.cidade, uf: v.uf });
     return regiao.distanciaKm ?? null;
   }
 
-  // Impede dois leitores com o mesmo CPF.
+  // nao deixa repetir cpf usando o hash
   private static async garantirCpfUnico(cpfHash: string, idIgnorado: number): Promise<void> {
     const repetidos = await Banco.consultar("SELECT id FROM usuario WHERE cpf_hash = ? AND id <> ?", [cpfHash, idIgnorado]);
     if (repetidos.length) throw new ErroNegocio("Já existe um usuário cadastrado com este CPF.");
   }
 
-  // CREATE: cadastra um leitor.
+  // cadastra um leitor com cpf cifrado
   static async criar(dados: any): Promise<{ id: number }> {
     const v = ServicoUsuario.validar(dados);
     const cpfHash = Seguranca.hashCpf(v.cpf);
@@ -153,7 +157,7 @@ export class ServicoUsuario {
     return { id: resultado.insertId };
   }
 
-  // UPDATE: altera um leitor (só recalcula a distância se o endereço mudou).
+  // edita o leitor e so recalcula a distancia se o endereco mudou
   static async atualizar(dados: any): Promise<void> {
     const id = Validador.inteiro(dados?.id, "Usuário");
     const v = ServicoUsuario.validar(dados);
@@ -174,7 +178,7 @@ export class ServicoUsuario {
     );
   }
 
-  // DELETE: exclui um leitor que não tem empréstimos nem reservas no histórico.
+  // apaga o leitor so se ele nao tem historico
   static async excluir(idBruto: unknown): Promise<void> {
     const id = Validador.inteiro(idBruto, "Usuário");
     const historico = await Banco.consultar<{ total: number }>(

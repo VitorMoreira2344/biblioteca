@@ -1,10 +1,4 @@
--- ============================================================
--- Biblioteca Comunitária - criação das tabelas (MySQL)
--- Este script é executado AUTOMATICAMENTE quando o app inicia
--- (CREATE TABLE IF NOT EXISTS não apaga nada que já existe).
--- ============================================================
-
--- Quem usa o SISTEMA (login). Não confundir com "usuario", que é o leitor.
+-- quem trabalha na biblioteca e faz login no sistema
 CREATE TABLE IF NOT EXISTS usuario_sistema (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nome VARCHAR(100) NOT NULL,
@@ -15,19 +9,21 @@ CREATE TABLE IF NOT EXISTS usuario_sistema (
   criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- editoras dos livros
 CREATE TABLE IF NOT EXISTS editora (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nome VARCHAR(120) NOT NULL UNIQUE,
   cidade VARCHAR(80) NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- autores dos livros
 CREATE TABLE IF NOT EXISTS autor (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nome VARCHAR(120) NOT NULL UNIQUE,
   nacionalidade VARCHAR(60) NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Cada linha de "livro" é UM exemplar físico (doações repetidas viram linhas novas).
+-- cada linha e um exemplar de livro na estante
 CREATE TABLE IF NOT EXISTS livro (
   id INT AUTO_INCREMENT PRIMARY KEY,
   titulo VARCHAR(200) NOT NULL,
@@ -40,7 +36,7 @@ CREATE TABLE IF NOT EXISTS livro (
   CONSTRAINT fk_livro_editora FOREIGN KEY (editora_id) REFERENCES editora(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Relação N:N: um livro pode ter vários autores e um autor vários livros.
+-- liga livro com autor porque um livro pode ter varios autores e um autor varios livros
 CREATE TABLE IF NOT EXISTS livro_autor (
   livro_id INT NOT NULL,
   autor_id INT NOT NULL,
@@ -49,7 +45,7 @@ CREATE TABLE IF NOT EXISTS livro_autor (
   CONSTRAINT fk_la_autor FOREIGN KEY (autor_id) REFERENCES autor(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- O leitor da biblioteca. O CPF fica CIFRADO em cpf_cifrado. O cpf_hash serve só para impedir CPF repetido.
+-- os leitores com o cpf cifrado e o hash do cpf pra nao repetir
 CREATE TABLE IF NOT EXISTS usuario (
   id INT AUTO_INCREMENT PRIMARY KEY,
   nome VARCHAR(100) NOT NULL,
@@ -68,7 +64,7 @@ CREATE TABLE IF NOT EXISTS usuario (
   criado_em DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- data_devolucao NULL = ainda está com o leitor.
+-- emprestimos e se data_devolucao ta vazia o livro ainda ta com o leitor
 CREATE TABLE IF NOT EXISTS emprestimo (
   id INT AUTO_INCREMENT PRIMARY KEY,
   livro_id INT NOT NULL,
@@ -82,8 +78,7 @@ CREATE TABLE IF NOT EXISTS emprestimo (
   CONSTRAINT fk_emp_usuario FOREIGN KEY (usuario_id) REFERENCES usuario(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- status: aguardando (livro ainda na rua) -> disponivel (voltou, tem data_limite para buscar)
---         -> atendida (virou empréstimo) | expirada (não buscou a tempo) | cancelada
+-- reservas e a fila de espera de cada livro
 CREATE TABLE IF NOT EXISTS reserva (
   id INT AUTO_INCREMENT PRIMARY KEY,
   livro_id INT NOT NULL,

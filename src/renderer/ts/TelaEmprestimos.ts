@@ -1,25 +1,27 @@
-// Tela de empréstimos: lista (atrasados em destaque), novo empréstimo, renovar prazo, devolver.
+// tela dos emprestimos
 class TelaEmprestimos extends TelaBase {
   private emprestimos: Emprestimo[] = [];
+  // comeca mostrando so os que tao em andamento
   private filtro = "ativos";
 
+  // guarda se e admin pra mostrar o botao excluir
   constructor(raiz: HTMLElement, private ehAdmin: boolean) {
     super(raiz);
   }
 
-  // Ao abrir, mostra a lista.
+  // abre mostrando a lista
   async abrir(): Promise<void> {
     await this.mostrarLista();
   }
 
-  // Texto da situação de um empréstimo.
+  // texto da situacao de cada emprestimo
   private situacao(e: Emprestimo): string {
     if (e.data_devolucao) return `Devolvido em ${Util.dataBR(e.data_devolucao)}`;
     if (e.atrasado) return `ATRASADO há ${e.dias_atraso} dia(s)`;
     return "Em dia";
   }
 
-  // Busca os empréstimos do filtro escolhido e desenha a tabela.
+  // busca os emprestimos com o filtro e monta a tabela com os atrasados em preto
   private async mostrarLista(): Promise<void> {
     this.emprestimos = await Servidor.chamar<Emprestimo[]>("emprestimo:listar", { filtro: this.filtro });
     const opcoes = [
@@ -50,7 +52,7 @@ class TelaEmprestimos extends TelaBase {
       ${this.emprestimos.length ? `<table><thead><tr><th>Livro</th><th>Leitor</th><th>Contato / endereço</th><th>Retirada</th><th>Prazo</th><th>Situação</th><th>Ações</th></tr></thead><tbody>${linhas}</tbody></table>` : `<div class="vazio">Nenhum empréstimo neste filtro.</div>`}`;
   }
 
-  // Mudou o filtro da lista.
+  // trocou o filtro entao recarrega a lista
   protected aoDigitar(campo: HTMLInputElement): void {
     if (campo.id === "filtro") {
       this.filtro = campo.value;
@@ -58,7 +60,7 @@ class TelaEmprestimos extends TelaBase {
     }
   }
 
-  // Formulário de NOVO empréstimo.
+  // formulario de emprestimo novo com livros disponiveis leitores e prazo sugerido
   private async mostrarFormularioNovo(): Promise<void> {
     const [livros, usuarios, prazo] = await Promise.all([
       Servidor.chamar<Livro[]>("livro:listar"),
@@ -85,7 +87,7 @@ class TelaEmprestimos extends TelaBase {
       </form>`;
   }
 
-  // Formulário de edição (renovar o prazo) de um empréstimo ativo.
+  // formulario pra renovar o prazo ou mudar a observacao
   private mostrarFormularioEdicao(e: Emprestimo): void {
     this.raiz.innerHTML = `
       <h2>Renovar / editar empréstimo</h2>
@@ -101,7 +103,7 @@ class TelaEmprestimos extends TelaBase {
       </form>`;
   }
 
-  // Cliques da tela.
+  // trata os botoes novo cancelar editar devolver e excluir
   protected async aoClicar(acao: string, id: number | null): Promise<void> {
     if (acao === "novo") await this.mostrarFormularioNovo();
     else if (acao === "cancelar") await this.mostrarLista();
@@ -123,7 +125,7 @@ class TelaEmprestimos extends TelaBase {
     }
   }
 
-  // Salvar (novo ou edição).
+  // salva o emprestimo novo ou a edicao e mostra se o prazo mudou por feriado
   protected async aoEnviar(idDoForm: string, form: HTMLFormElement): Promise<void> {
     const dados = Util.dadosDoFormulario(form);
     const canal = idDoForm === "formNovoEmprestimo" ? "emprestimo:criar" : "emprestimo:atualizar";
@@ -132,7 +134,7 @@ class TelaEmprestimos extends TelaBase {
     await this.depoisDeAlterar();
   }
 
-  // Atualiza a lista e o contador de atrasados do menu.
+  // recarrega a lista e o contador de atrasados do menu
   private async depoisDeAlterar(): Promise<void> {
     await this.mostrarLista();
     await Aplicacao.atual.atualizarAviso();

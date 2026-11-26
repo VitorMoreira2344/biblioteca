@@ -1,5 +1,4 @@
-// Guarda QUEM está logado. Fica só na memória do processo principal, então
-// a tela (renderer) não consegue "fingir" que é administrador.
+// dados de quem ta logado agora
 export interface UsuarioLogado {
   id: number;
   nome: string;
@@ -7,30 +6,31 @@ export interface UsuarioLogado {
   perfil: PerfilAcesso;
 }
 
+// guarda na memoria quem fez login
 export class Sessao {
   private static atual: UsuarioLogado | null = null;
 
-  // Registra o usuário que acabou de entrar.
+  // salva o usuario quando o login da certo
   static iniciar(usuario: UsuarioLogado): void {
     Sessao.atual = usuario;
   }
 
-  // Apaga a sessão (logout).
+  // limpa tudo quando a pessoa sai
   static encerrar(): void {
     Sessao.atual = null;
   }
 
-  // Devolve o usuário logado (ou null).
+  // devolve quem ta logado ou null
   static obter(): UsuarioLogado | null {
     return Sessao.atual;
   }
 
-  // Tem alguém logado?
+  // tem alguem logado
   static estaLogado(): boolean {
     return Sessao.atual !== null;
   }
 
-  // O usuário logado é administrador?
+  // o usuario logado e administrador
   static ehAdmin(): boolean {
     return Sessao.atual?.perfil === "administrador";
   }

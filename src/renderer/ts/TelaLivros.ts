@@ -1,10 +1,10 @@
-// Tela de livros: lista com busca e formulário com "Buscar dados pelo ISBN".
+// tela dos livros
 class TelaLivros extends TelaBase {
   private livros: Livro[] = [];
 
+  // enter no campo isbn busca o livro em vez de salvar o formulario
   constructor(raiz: HTMLElement, private ehAdmin: boolean) {
     super(raiz);
-    // Apertar Enter no campo ISBN busca os dados (em vez de salvar o formulário sem querer).
     raiz.addEventListener("keydown", (evento) => {
       if (evento.key === "Enter" && (evento.target as HTMLElement).id === "isbn") {
         evento.preventDefault();
@@ -13,12 +13,12 @@ class TelaLivros extends TelaBase {
     });
   }
 
-  // Ao abrir, mostra a lista.
+  // abre mostrando a lista
   async abrir(): Promise<void> {
     await this.mostrarLista();
   }
 
-  // Texto da situação do livro (disponível, emprestado ou reservado).
+  // texto da situacao do livro
   private situacao(livro: Livro): string {
     if (livro.status === "emprestado") {
       const reservas = livro.reservas_ativas ? ` (${livro.reservas_ativas} na fila de reserva)` : "";
@@ -28,7 +28,7 @@ class TelaLivros extends TelaBase {
     return "Disponível";
   }
 
-  // Busca os livros e desenha a tabela.
+  // busca os livros e desenha a barra de busca
   private async mostrarLista(): Promise<void> {
     this.livros = await Servidor.chamar<Livro[]>("livro:listar");
     this.raiz.innerHTML = `
@@ -41,7 +41,7 @@ class TelaLivros extends TelaBase {
     this.desenharTabela("");
   }
 
-  // Desenha a tabela aplicando o filtro de busca.
+  // monta a tabela filtrando por titulo autor ou isbn
   private desenharTabela(filtro: string): void {
     const busca = Util.semAcento(filtro.trim());
     const lista = this.livros.filter((l) => !busca || Util.semAcento(`${l.titulo} ${l.autores} ${l.isbn ?? ""}`).includes(busca));
@@ -62,13 +62,13 @@ class TelaLivros extends TelaBase {
     area.innerHTML = `<table><thead><tr><th>Capa</th><th>Título</th><th>Autores</th><th>Editora</th><th>ISBN</th><th>Situação</th><th>Ações</th></tr></thead><tbody>${linhas}</tbody></table>`;
   }
 
-  // Filtra a tabela enquanto digita na busca.
+  // busca enquanto digita e atualiza a previa da capa
   protected aoDigitar(campo: HTMLInputElement): void {
     if (campo.id === "busca") this.desenharTabela(campo.value);
     if (campo.id === "capa_url") this.atualizarPreviaCapa();
   }
 
-  // Mostra a miniatura da capa no formulário.
+  // mostra a capa se o link for https e esconde se nao for
   private atualizarPreviaCapa(): void {
     const campo = Util.porId<HTMLInputElement>("capa_url");
     const previa = Util.porId<HTMLImageElement>("previaCapa");
@@ -82,7 +82,7 @@ class TelaLivros extends TelaBase {
     }
   }
 
-  // Desenha o formulário de cadastro/edição.
+  // formulario de livro novo ou de editar com a lista de editoras pra sugerir
   private async mostrarFormulario(id: number | null): Promise<void> {
     const livro = id ? await Servidor.chamar<Livro>("livro:obter", { id }) : null;
     const editoras = await Servidor.chamar<Editora[]>("editora:listar");
@@ -117,7 +117,7 @@ class TelaLivros extends TelaBase {
     this.atualizarPreviaCapa();
   }
 
-  // Usa a API de ISBN (no processo principal) para preencher o formulário.
+  // busca o isbn e preenche os campos que vieram
   private async buscarIsbn(): Promise<void> {
     const isbn = Util.porId<HTMLInputElement>("isbn").value;
     const info = Util.porId("infoIsbn");
@@ -134,6 +134,7 @@ class TelaLivros extends TelaBase {
       preencher("paginas", d.paginas);
       preencher("capa_url", d.capa_url);
       this.atualizarPreviaCapa();
+      // avisa se ja tem outro exemplar com esse isbn
       const copias = d.copias_no_acervo ? ` Atenção: já existe(m) ${d.copias_no_acervo} exemplar(es) deste ISBN no acervo.` : "";
       info.textContent = `Dados encontrados em ${d.fonte}. Confira e salve.${copias}`;
     } catch (erro) {
@@ -141,7 +142,7 @@ class TelaLivros extends TelaBase {
     }
   }
 
-  // Cliques da tela.
+  // trata os botoes novo editar cancelar buscar isbn e excluir
   protected async aoClicar(acao: string, id: number | null): Promise<void> {
     if (acao === "novo") await this.mostrarFormulario(null);
     else if (acao === "editar") await this.mostrarFormulario(id);
@@ -156,7 +157,7 @@ class TelaLivros extends TelaBase {
     }
   }
 
-  // Salvar o formulário (cadastro ou edição).
+  // salva o livro novo ou a edicao
   protected async aoEnviar(_idDoForm: string, form: HTMLFormElement): Promise<void> {
     const dados = Util.dadosDoFormulario(form);
     if (dados.id) await Servidor.chamar("livro:atualizar", dados);

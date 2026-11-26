@@ -4,52 +4,50 @@ import { Configuracao } from "../config/Configuracao";
 import { ServicoEmail, ResultadoEmail } from "./ServicoEmail";
 import { ServicoReserva } from "./ServicoReserva";
 
-// AVISOS AUTOMÁTICOS por e-mail:
-//  - reserva disponível ("o livro voltou, venha buscar");
-//  - empréstimo perto de vencer (ou já vencido).
-// Roda ao abrir o programa, de tempos em tempos e depois de cada devolução.
+// manda os emails automaticos de reserva e de prazo vencendo
 export class ServicoNotificacao {
-  private static fila: Promise<unknown> = Promise.resolve(); // garante uma execução por vez
+  // fila pra nunca rodar dois envios ao mesmo tempo
+  private static fila: Promise<unknown> = Promise.resolve();
   private static temporizador: NodeJS.Timeout | null = null;
 
-  // Liga a verificação automática (agora e a cada 10 minutos).
+  // roda agora e depois a cada 10 minutos
   static agendar(): void {
     const rodar = () => ServicoNotificacao.processar().catch((e) => console.error("Falha nos avisos:", e));
     rodar();
     ServicoNotificacao.temporizador = setInterval(rodar, 10 * 60 * 1000);
   }
 
-  // Desliga a verificação automática.
+  // para o relogio quando o app fecha
   static parar(): void {
     if (ServicoNotificacao.temporizador) clearInterval(ServicoNotificacao.temporizador);
   }
 
-  // Executa a rotina completa, uma de cada vez (se já tiver uma rodando, espera ela acabar).
+  // coloca uma rodada na fila e devolve o resultado dela
   static processar(): Promise<ResultadoNotificacao> {
     const execucao = ServicoNotificacao.fila.then(() => ServicoNotificacao.executar());
     ServicoNotificacao.fila = execucao.catch(() => undefined);
     return execucao;
   }
 
-  // Marca o aviso como enviado (ou conta a falha, para tentar de novo depois).
+  // marca que o aviso foi enviado pra nao mandar de novo e conta no resumo
   private static async registrar(resultado: ResultadoEmail, tabela: "reserva" | "emprestimo", id: number, resumo: ResultadoNotificacao): Promise<boolean> {
     if (!resultado.enviado && !resultado.simulado) {
       resumo.falhas++;
       return false;
     }
-    await Banco.executar(`UPDATE ${tabela} SET aviso_enviado = 1 WHERE id = ?`, [id]); // "tabela" só aceita 2 valores fixos
+    await Banco.executar(`UPDATE ${tabela} SET aviso_enviado = 1 WHERE id = ?`, [id]);
     if (resultado.simulado) resumo.simulados++;
     return true;
   }
 
-  // O trabalho em si.
+  // faz o trabalho de verdade
   private static async executar(): Promise<ResultadoNotificacao> {
     const resumo: ResultadoNotificacao = { reservas_avisadas: 0, vencimentos_avisados: 0, reservas_expiradas: 0, simulados: 0, falhas: 0 };
 
-    // 1) Reservas que ninguém buscou a tempo expiram (e o próximo da fila é chamado).
+    // primeiro expira as reservas que passaram do prazo
     resumo.reservas_expiradas = await ServicoReserva.expirarVencidas();
 
-    // 2) Reservas disponíveis cujo leitor ainda não foi avisado.
+    // avisa quem tem reserva pronta pra buscar
     const reservas = await Banco.consultar<any>(
       `SELECT r.id, r.data_limite, l.titulo, u.nome, u.email
          FROM reserva r JOIN livro l ON l.id = r.livro_id JOIN usuario u ON u.id = r.usuario_id
@@ -61,7 +59,7 @@ export class ServicoNotificacao {
       if (await ServicoNotificacao.registrar(resultado, "reserva", r.id, resumo)) resumo.reservas_avisadas++;
     }
 
-    // 3) Empréstimos que vencem em breve (ou já venceram) e ainda não receberam aviso.
+    // avisa quem ta com prazo vencendo ou ja vencido
     const hoje = Datas.hoje();
     const limite = Datas.somarDias(hoje, Configuracao.DIAS_AVISO_VENCIMENTO);
     const emprestimos = await Banco.consultar<any>(

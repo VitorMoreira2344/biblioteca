@@ -6,13 +6,9 @@ import { Configuracao } from "../config/Configuracao";
 import { ServicoEmprestimo } from "./ServicoEmprestimo";
 import { ServicoNotificacao } from "./ServicoNotificacao";
 
-// RESERVAS. Funcionamento (conforme pediu o dono da biblioteca):
-//  1) Livro emprestado -> qualquer leitor pode entrar na FILA de reserva ("aguardando").
-//  2) Quando o livro volta, o 1º da fila vira "disponivel", ganha 1 dia para buscar e recebe e-mail.
-//  3) Se não buscar a tempo, a reserva "expira"; passa para o próximo da fila ou,
-//     se não houver fila, o livro fica livre para qualquer um.
+// crud das reservas e a fila de espera
 export class ServicoReserva {
-  // READ: lista reservas (as ativas primeiro) com a posição na fila.
+  // lista as reservas com as disponiveis primeiro e calcula a posicao na fila
   static async listar(): Promise<Reserva[]> {
     const linhas = await Banco.consultar<any>(
       `SELECT r.id, r.livro_id, r.usuario_id, l.titulo, u.nome AS usuario_nome, r.data_reserva,
@@ -23,7 +19,7 @@ export class ServicoReserva {
         ORDER BY FIELD(r.status, 'disponivel', 'aguardando', 'atendida', 'expirada', 'cancelada'),
                  r.data_reserva, r.id`,
     );
-    // Posição na fila: conta quantos "aguardando" do mesmo livro vêm antes (a lista já está ordenada).
+    // numera quem ta aguardando por livro tipo 1 2 3 na fila
     const contagem = new Map<number, number>();
     return linhas.map((l) => {
       let posicao: number | null = null;
@@ -35,7 +31,7 @@ export class ServicoReserva {
     });
   }
 
-  // READ: uma reserva pelo id.
+  // pega uma reserva pelo id
   static async obter(idBruto: unknown): Promise<Reserva> {
     const id = Validador.inteiro(idBruto, "Reserva");
     const todas = await ServicoReserva.listar();
@@ -44,13 +40,14 @@ export class ServicoReserva {
     return reserva;
   }
 
-  // CREATE: reserva um livro que está emprestado (ou já reservado por outra pessoa).
+  // cria uma reserva nova
   static async criar(dados: any): Promise<{ id: number }> {
     const livroId = Validador.inteiro(dados?.livro_id, "Livro");
     const usuarioId = Validador.inteiro(dados?.usuario_id, "Usuário");
     const observacao = Validador.texto(dados?.observacao, "Observação", 255, false);
     await ServicoReserva.expirarVencidas();
 
+    // faz tudo numa transacao e trava o livro pra ninguem mexer junto
     return Banco.transacao(async (c) => {
       const livros = await c.consultar("SELECT id FROM livro WHERE id = ? FOR UPDATE", [livroId]);
       if (!livros.length) throw new ErroNegocio("Livro não encontrado.");
@@ -63,12 +60,15 @@ export class ServicoReserva {
         [livroId],
       );
 
+      // so da pra reservar livro que ta fora da estante
       if (!emprestimos.length && !reservasAtivas.length) {
         throw new ErroNegocio("Este livro está disponível na estante: faça o empréstimo direto, sem reserva.");
       }
+      // quem ta com o livro nao pode reservar ele
       if (emprestimos.some((e) => e.usuario_id === usuarioId)) {
         throw new ErroNegocio("Este leitor está com o livro agora, não pode reservá-lo.");
       }
+      // nao deixa a mesma pessoa reservar duas vezes
       if (reservasAtivas.some((r) => r.usuario_id === usuarioId)) {
         throw new ErroNegocio("Este leitor já tem uma reserva ativa para este livro.");
       }
@@ -81,7 +81,7 @@ export class ServicoReserva {
     });
   }
 
-  // UPDATE: altera a observação ou cancela a reserva.
+  // edita a observacao e pode cancelar a reserva
   static async atualizar(dados: any): Promise<void> {
     const id = Validador.inteiro(dados?.id, "Reserva");
     const observacao = Validador.texto(dados?.observacao, "Observação", 255, false);
@@ -93,19 +93,19 @@ export class ServicoReserva {
       const { livro_id, status } = linhas[0];
 
       await c.executar("UPDATE reserva SET observacao = ? WHERE id = ?", [observacao, id]);
+      // cancelar so se a reserva ta ativa e se ela tava disponivel passa pro proximo da fila
       if (cancelar) {
         if (status !== "aguardando" && status !== "disponivel") {
           throw new ErroNegocio("Só é possível cancelar reservas ativas.");
         }
         await c.executar("UPDATE reserva SET status = 'cancelada' WHERE id = ?", [id]);
-        // Se o livro estava guardado para esta pessoa, passa a vez para o próximo da fila.
         if (status === "disponivel") await ServicoReserva.promoverProximo(livro_id, c);
       }
     });
     await ServicoNotificacao.processar();
   }
 
-  // DELETE: apaga o registro de uma reserva (só administrador).
+  // apaga a reserva e se ela tava disponivel passa pro proximo da fila
   static async excluir(idBruto: unknown): Promise<void> {
     const id = Validador.inteiro(idBruto, "Reserva");
     await Banco.transacao(async (c) => {
@@ -117,20 +117,19 @@ export class ServicoReserva {
     await ServicoNotificacao.processar();
   }
 
-  // Transforma uma reserva "disponivel" em empréstimo (o leitor veio buscar o livro).
+  // transforma uma reserva disponivel em emprestimo
   static async emprestar(dados: any): Promise<{ id: number; aviso: string | null }> {
     const id = Validador.inteiro(dados?.id, "Reserva");
     const reserva = await ServicoReserva.obter(id);
     if (reserva.status !== "disponivel") {
       throw new ErroNegocio("Só é possível emprestar uma reserva que já está disponível para retirada.");
     }
-    // ServicoEmprestimo.criar já marca a reserva como "atendida".
     return ServicoEmprestimo.criar({ livro_id: reserva.livro_id, usuario_id: reserva.usuario_id, data_prevista: dados?.data_prevista });
   }
 
-  // Dá a vez ao primeiro da fila: "aguardando" -> "disponivel" com 1 dia para buscar.
-  // Devolve null se não há fila ou se o livro ainda está emprestado.
+  // quando o livro volta o primeiro da fila ganha 1 dia pra buscar
   static async promoverProximo(livroId: number, c: Executor = Banco): Promise<{ reserva_id: number; usuario_nome: string } | null> {
+    // se o livro ainda ta emprestado nao faz nada
     const emprestados = await c.consultar("SELECT id FROM emprestimo WHERE livro_id = ? AND data_devolucao IS NULL", [livroId]);
     if (emprestados.length) return null;
 
@@ -146,8 +145,7 @@ export class ServicoReserva {
     return { reserva_id: fila[0].id, usuario_nome: fila[0].nome };
   }
 
-  // Expira as reservas cujo prazo de retirada passou e dá a vez ao próximo da fila.
-  // Devolve quantas reservas expiraram.
+  // reserva que passou do dia de buscar expira e passa pro proximo
   static async expirarVencidas(): Promise<number> {
     const vencidas = await Banco.consultar<any>(
       "SELECT id, livro_id FROM reserva WHERE status = 'disponivel' AND data_limite < ?",

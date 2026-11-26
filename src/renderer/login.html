@@ -2,18 +2,21 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <!-- CSP: a tela só pode carregar scripts e estilos da própria aplicação -->
+    <!-- csp que so deixa rodar os nossos scripts -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'" />
     <title>Biblioteca Comunitária - Entrar</title>
     <link rel="stylesheet" href="estilo.css" />
   </head>
+  <!-- caixa do login no meio da tela -->
   <body class="centralizado">
     <main class="caixa-login">
       <h1>Biblioteca Comunitária</h1>
       <div id="areaLogin"></div>
     </main>
+    <!-- caixinha das mensagens de aviso e erro -->
     <div id="mensagem" class="mensagem"></div>
 
+    <!-- scripts da tela de login -->
     <script src="../../dist/renderer/js/Util.js"></script>
     <script src="../../dist/renderer/js/Servidor.js"></script>
     <script src="../../dist/renderer/js/TelaBase.js"></script>

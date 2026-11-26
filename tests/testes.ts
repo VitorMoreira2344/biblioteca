@@ -1,6 +1,3 @@
-// Testes automáticos das regras de negócio (rodam contra um MySQL de verdade).
-// As APIs externas (Open Library, ViaCEP, BrasilAPI, Nominatim) são SIMULADAS aqui.
-// Como rodar:  defina DB_* e CHAVE_CRIPTOGRAFIA no .env e use  npm test
 import * as path from "path";
 import { Configuracao } from "../src/main/config/Configuracao";
 import { Banco } from "../src/main/banco/Banco";
@@ -18,10 +15,11 @@ import { ServicoReserva } from "../src/main/servicos/ServicoReserva";
 import { ServicoNotificacao } from "../src/main/servicos/ServicoNotificacao";
 import { ServicoPainel } from "../src/main/servicos/ServicoPainel";
 
+// conta quantos testes rodaram e quantos falharam
 let total = 0;
 let falhas = 0;
 
-// Confere uma condição e imprime OK / FALHOU.
+// marca um teste como ok ou falhou
 function verificar(descricao: string, condicao: boolean): void {
   total++;
   if (condicao) console.log(`  ok   ${descricao}`);
@@ -31,7 +29,7 @@ function verificar(descricao: string, condicao: boolean): void {
   }
 }
 
-// Confere que a função lança um erro cuja mensagem contém o trecho.
+// testa se a funcao da o erro esperado
 async function esperarErro(descricao: string, funcao: () => Promise<unknown>, trecho: string): Promise<void> {
   try {
     await funcao();
@@ -42,7 +40,7 @@ async function esperarErro(descricao: string, funcao: () => Promise<unknown>, tr
   }
 }
 
-// ---------------- Simulação das APIs externas ----------------
+// finge as apis de fora pra testar sem internet e guarda quais foram chamadas
 const chamadas: string[] = [];
 function simularApis(): void {
   const json = (corpo: unknown, status = 200) => new Response(JSON.stringify(corpo), { status, headers: { "content-type": "application/json" } });
@@ -50,6 +48,7 @@ function simularApis(): void {
     const url = String(entrada);
     chamadas.push(new URL(url).hostname);
 
+    // open library falsa
     if (url.includes("openlibrary.org")) {
       if (url.includes("9788532511010")) {
         return json({
@@ -65,22 +64,26 @@ function simularApis(): void {
       }
       return json({});
     }
+    // google books falso
     if (url.includes("googleapis.com/books")) {
       if (url.includes("9780306406157")) {
         return json({ items: [{ volumeInfo: { title: "Livro do Google", authors: ["Autor G"], publisher: "Editora G", publishedDate: "1999-05", pageCount: 100, imageLinks: { thumbnail: "http://books.google.com/x.jpg" } } }] });
       }
       return json({ totalItems: 0 });
     }
+    // viacep falso
     if (url.includes("viacep.com.br")) {
       if (url.includes("13010000")) return json({ logradouro: "Rua Central", bairro: "Centro", localidade: "Campinas", uf: "SP" });
       if (url.includes("13010111")) return json({ logradouro: "Rua Perto", bairro: "Bairro Vizinho", localidade: "Campinas", uf: "SP" });
       if (url.includes("01001000")) return json({ logradouro: "Praça da Sé", bairro: "Sé", localidade: "São Paulo", uf: "SP" });
       return json({ erro: "true" });
     }
+    // brasilapi falsa com natal e mais um feriado
     if (url.includes("brasilapi.com.br/api/feriados")) {
       const ano = url.match(/v1\/(\d{4})/)![1];
       return json([{ date: `${ano}-12-25`, name: "Natal", type: "national" }, { date: `${ano}-12-26`, name: "Feriado Teste", type: "national" }]);
     }
+    // nominatim falso
     if (url.includes("nominatim.openstreetmap.org")) {
       const consulta = decodeURIComponent(url.split("q=")[1]);
       if (consulta.includes("Rua Central")) return json([{ lat: "-22.9000", lon: "-47.0600" }]);
@@ -92,24 +95,27 @@ function simularApis(): void {
   };
 }
 
-// Dados base de um leitor válido.
+// monta um leitor de teste rapidinho
 function leitor(nome: string, cpf: string, cep = "13010111", extra: any = {}) {
   return { nome, cpf, email: `${nome.split(" ")[0].toLowerCase()}@teste.com`, telefone: "19999998888", cep, logradouro: "Rua Perto", numero: "10", bairro: "Bairro Vizinho", cidade: "Campinas", uf: "SP", ...extra };
 }
 
+// roda todos os testes em ordem
 async function principal(): Promise<void> {
   const raiz = path.join(__dirname, "..", "..", "..");
   Configuracao.carregar(raiz);
-  // TRAVA DE SEGURANÇA: este teste APAGA e recria as tabelas. Só roda em banco com "teste" no nome.
+  // so roda em banco com teste no nome porque apaga as tabelas
   if (!/teste|test/i.test(Configuracao.banco.database)) {
     console.error(`\nTeste cancelado: o banco "${Configuracao.banco.database}" não parece ser de teste (este teste apaga as tabelas).\nCrie um banco com "teste" no nome (ex.: biblioteca_teste) e aponte o .env para ele.\n`);
     process.exit(1);
   }
+  // biblioteca de mentira e email sempre simulado
   process.env.BIBLIOTECA_CEP = "13010000";
   process.env.RAIO_REGIAO_KM = "5";
-  delete process.env.SMTP_HOST; // força o modo "e-mail simulado"
+  delete process.env.SMTP_HOST;
   simularApis();
 
+  // validacoes de cpf isbn senha e datas
   console.log("\n== Validações ==");
   verificar("CPF válido aceito", Validador.cpfValido("52998224725"));
   verificar("CPF inválido recusado", !Validador.cpfValido("52998224726"));
@@ -122,6 +128,7 @@ async function principal(): Promise<void> {
   verificar("Somar dias passa de mês", Datas.somarDias("2026-01-30", 3) === "2026-02-02");
   verificar("Dias entre datas", Datas.diasEntre("2026-01-01", "2026-01-11") === 10);
 
+  // hash de senha e cpf cifrado
   console.log("\n== Segurança ==");
   const hash = await Seguranca.gerarHashSenha("Senha1234");
   verificar("Hash não contém a senha", !hash.includes("Senha1234"));
@@ -136,6 +143,7 @@ async function principal(): Promise<void> {
   verificar("Dado cifrado adulterado é detectado", (() => { try { Seguranca.decifrar(adulterado.toString("base64")); return false; } catch { return true; } })());
   verificar("CPF mascarado", Seguranca.mascararCpf("52998224725") === "***.982.247-**");
 
+  // recria as tabelas e testa login primeiro admin e bloqueio
   console.log("\n== Banco e acesso ==");
   await Banco.conectar();
   await Banco.executar("DROP TABLE IF EXISTS reserva, emprestimo, livro_autor, usuario, livro, autor, editora, usuario_sistema");
@@ -162,6 +170,7 @@ async function principal(): Promise<void> {
   for (let i = 0; i < 5; i++) await ServicoAcesso.entrar({ login: "brute", senha: "x" }).catch(() => undefined);
   await esperarErro("Bloqueio após 5 tentativas erradas", () => ServicoAcesso.entrar({ login: "brute", senha: "x" }), "Muitas tentativas");
 
+  // crud dos usuarios do sistema
   await ServicoAcesso.entrar({ login: "dono", senha: "Livros2026" });
   const biblio = await ServicoAcesso.criar({ nome: "Voluntária", login: "maria", senha: "Maria12345", perfil: "bibliotecario" });
   await ServicoAcesso.atualizar({ id: biblio.id, nome: "Maria Voluntária", login: "maria", perfil: "bibliotecario", ativo: 1 });
@@ -172,6 +181,7 @@ async function principal(): Promise<void> {
   await ServicoAcesso.excluir(biblio.id);
   verificar("Excluir usuário do sistema", (await ServicoAcesso.listar()).length === 1);
 
+  // crud de autores e editoras
   console.log("\n== Autores e editoras (CRUD) ==");
   const a = await ServicoAutor.criar({ nome: "Machado de Assis", nacionalidade: "Brasileira" });
   await esperarErro("Autor repetido", () => ServicoAutor.criar({ nome: "Machado de Assis" }), "Já existe");
@@ -184,6 +194,7 @@ async function principal(): Promise<void> {
   await ServicoAutor.excluir(a.id);
   verificar("Autor e editora excluídos", (await ServicoAutor.listar()).length === 0 && (await ServicoEditora.listar()).length === 0);
 
+  // busca por isbn e crud de livros
   console.log("\n== Livros + API de ISBN ==");
   const dados = await ServicoLivro.buscarPorIsbn({ isbn: "978-85-325-1101-0" });
   verificar("Open Library preenche título/autor/editora/ano", dados.titulo.startsWith("Harry Potter") && dados.autores[0] === "J. K. Rowling" && dados.editora === "Rocco" && dados.ano_publicacao === 2000);
@@ -206,6 +217,7 @@ async function principal(): Promise<void> {
   await esperarErro("Autor não pode ser excluído se tem livro", () => ServicoAutor.excluir(idMachado), "ligado a livros");
   await esperarErro("Editora não pode ser excluída se tem livro", () => ServicoEditora.excluir(idRocco), "ligada a livros");
 
+  // cep distancia e crud de leitores
   console.log("\n== Leitores + API de CEP/distância ==");
   const cep = await ServicoUsuario.consultarCep({ cep: "13010-111" });
   verificar("ViaCEP preenche endereço", cep.status === "ok" && cep.endereco!.logradouro === "Rua Perto");
@@ -231,6 +243,7 @@ async function principal(): Promise<void> {
   await ServicoUsuario.atualizar({ ...leitor("Maria Silva Souza", "52998224725"), id: maria.id });
   verificar("Leitor atualizado", (await ServicoUsuario.obter(maria.id)).nome === "Maria Silva Souza");
 
+  // emprestimos e prazo pulando feriado
   console.log("\n== Empréstimos + API de feriados ==");
   await esperarErro("Empréstimo com prazo no passado", () => ServicoEmprestimo.criar({ livro_id: hp.id, usuario_id: maria.id, data_prevista: "2020-01-01" }), "anterior a hoje");
   const sugestao = await ServicoEmprestimo.sugerirPrazo();
@@ -245,6 +258,7 @@ async function principal(): Promise<void> {
   await esperarErro("Não exclui livro com histórico", () => ServicoLivro.excluir(hp.id), "empréstimos");
   await esperarErro("Não exclui leitor com histórico", () => ServicoUsuario.excluir(maria.id), "histórico");
 
+  // atrasados painel e avisos por email
   console.log("\n== Atrasados ==");
   await Banco.executar("UPDATE emprestimo SET data_prevista = ? WHERE id = ?", [Datas.somarDias(Datas.hoje(), -5), emp.id]);
   const atrasados = await ServicoEmprestimo.listar("atrasados");
@@ -262,6 +276,7 @@ async function principal(): Promise<void> {
   await Banco.executar("UPDATE emprestimo SET aviso_enviado = 0 WHERE id = ?", [emp.id]);
   verificar("Aviso 'vence amanhã' também é enviado", (await ServicoNotificacao.processar()).vencimentos_avisados === 1);
 
+  // fila de reservas devolucao e expiracao
   console.log("\n== Reservas (fila, devolução, expiração) ==");
   await esperarErro("Não reserva livro disponível", () => ServicoReserva.criar({ livro_id: hp2.id, usuario_id: joao.id }), "disponível");
   await esperarErro("Quem está com o livro não reserva", () => ServicoReserva.criar({ livro_id: hp.id, usuario_id: maria.id }), "está com o livro");
@@ -301,6 +316,7 @@ async function principal(): Promise<void> {
   await ServicoEmprestimo.excluir(empBruno.id);
   verificar("Excluir empréstimo ativo devolve o livro ao acervo", (await ServicoLivro.obter(hp.id)).status === "disponivel");
 
+  // apaga o que sobrou
   console.log("\n== Exclusões finais (delete) ==");
   await Banco.executar("DELETE FROM reserva");
   await Banco.executar("DELETE FROM emprestimo");
@@ -308,15 +324,18 @@ async function principal(): Promise<void> {
   await ServicoLivro.excluir(hp2.id);
   verificar("Excluir leitor e livro sem histórico", (await ServicoUsuario.listar()).length === 3 && (await ServicoLivro.listar()).length === 1);
 
+  // confere se as 4 apis foram usadas
   console.log("\n== Uso das APIs ==");
   const usadas = new Set(chamadas);
   verificar(`4 APIs externas usadas: ${[...usadas].join(", ")}`, ["openlibrary.org", "viacep.com.br", "brasilapi.com.br", "nominatim.openstreetmap.org"].every((h) => usadas.has(h)));
 
+  // fecha o banco e mostra o placar
   await Banco.fechar();
   console.log(`\n${total - falhas}/${total} verificações passaram.${falhas ? "  *** HÁ FALHAS ***" : ""}\n`);
   process.exit(falhas ? 1 : 0);
 }
 
+// comeca os testes
 principal().catch((erro) => {
   console.error("Erro inesperado nos testes:", erro);
   process.exit(1);

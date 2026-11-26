@@ -2,22 +2,23 @@ import * as nodemailer from "nodemailer";
 import { Configuracao } from "../config/Configuracao";
 import { Datas } from "../util/Datas";
 
+// resultado de um envio de email
 export interface ResultadoEmail {
-  enviado: boolean; // foi mesmo para o servidor SMTP
-  simulado: boolean; // SMTP não configurado: só escrevemos no console
+  enviado: boolean;
+  simulado: boolean;
   erro?: string;
 }
 
-// Envia os avisos por e-mail (vencimento do prazo e livro reservado de volta).
+// manda email pelo smtp do env
 export class ServicoEmail {
   private static transportador: nodemailer.Transporter | null = null;
 
-  // O SMTP está configurado no .env?
+  // tem smtp configurado ou nao
   static configurado(): boolean {
     return Configuracao.variavel("SMTP_HOST") !== "";
   }
 
-  // Cria (uma vez só) o objeto que conversa com o servidor SMTP.
+  // cria a conexao com o smtp so uma vez e reaproveita
   private static obterTransportador(): nodemailer.Transporter {
     if (!ServicoEmail.transportador) {
       const porta = Number(Configuracao.variavel("SMTP_PORT") || 587);
@@ -31,7 +32,7 @@ export class ServicoEmail {
     return ServicoEmail.transportador;
   }
 
-  // Envia um e-mail de texto. Nunca lança erro: devolve o resultado.
+  // manda o email e se nao tiver smtp so mostra no console
   static async enviar(para: string, assunto: string, texto: string): Promise<ResultadoEmail> {
     if (!ServicoEmail.configurado()) {
       console.log(`[E-MAIL SIMULADO] Para: ${para}\nAssunto: ${assunto}\n${texto}\n`);
@@ -51,7 +52,7 @@ export class ServicoEmail {
     }
   }
 
-  // Texto do aviso de prazo de devolução.
+  // monta o texto do lembrete de devolucao ou de atraso
   static avisoVencimento(nome: string, titulo: string, dataPrevista: string, atrasado: boolean): { assunto: string; texto: string } {
     const data = Datas.paraBR(dataPrevista);
     if (atrasado) {
@@ -66,7 +67,7 @@ export class ServicoEmail {
     };
   }
 
-  // Texto do aviso "o livro que você reservou voltou".
+  // monta o texto avisando que o livro reservado chegou
   static avisoReserva(nome: string, titulo: string, dataLimite: string): { assunto: string; texto: string } {
     return {
       assunto: `O livro "${titulo}" está disponível para você`,

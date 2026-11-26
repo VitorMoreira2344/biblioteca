@@ -3,9 +3,9 @@ import { Validador } from "../util/Validador";
 import { ErroNegocio, ErroApi } from "../util/ErroNegocio";
 import { ApiLivros } from "../apis/ApiLivros";
 
-// CRUD de LIVROS (cada linha é um exemplar físico) + busca de dados pelo ISBN.
+// crud dos livros e a busca pelo isbn
 export class ServicoLivro {
-  // Consulta base: traz o livro, a editora, os autores e a situação atual (emprestado/reservado).
+  // select que traz o livro com editora autores quem ta com ele e as reservas
   private static readonly SQL_BASE = `
     SELECT l.id, l.titulo, l.isbn, l.editora_id, e.nome AS editora, l.ano_publicacao, l.paginas,
            l.capa_url, l.observacao,
@@ -23,7 +23,7 @@ export class ServicoLivro {
       FROM livro l
       LEFT JOIN editora e ON e.id = l.editora_id`;
 
-  // Transforma a linha do banco em um Livro e calcula o status.
+  // descobre se o livro ta disponivel emprestado ou reservado
   private static montar(linha: any): Livro {
     const { aguardando_retirada, ...resto } = linha;
     let status: StatusLivro = "disponivel";
@@ -32,13 +32,13 @@ export class ServicoLivro {
     return { ...resto, reservas_ativas: Number(linha.reservas_ativas), status };
   }
 
-  // READ: lista todos os livros.
+  // lista todos os livros por titulo
   static async listar(): Promise<Livro[]> {
     const linhas = await Banco.consultar(`${ServicoLivro.SQL_BASE} ORDER BY l.titulo`);
     return linhas.map(ServicoLivro.montar);
   }
 
-  // READ: busca um livro pelo id.
+  // pega um livro pelo id
   static async obter(idBruto: unknown): Promise<Livro> {
     const id = Validador.inteiro(idBruto, "Livro");
     const linhas = await Banco.consultar(`${ServicoLivro.SQL_BASE} WHERE l.id = ?`, [id]);
@@ -46,14 +46,14 @@ export class ServicoLivro {
     return ServicoLivro.montar(linhas[0]);
   }
 
-  // Valida a capa: só aceita endereço https (evita "javascript:" ou arquivos locais).
+  // capa so pode ser link https
   private static validarCapa(valor: unknown): string | null {
     const capa = Validador.texto(valor, "Capa", 500, false);
     if (capa && !/^https:\/\//i.test(capa)) throw new ErroNegocio("O endereço da capa deve começar com https://");
     return capa;
   }
 
-  // Quebra "Autor A, Autor B; Autor C" em uma lista sem repetidos.
+  // quebra o texto dos autores em nomes e tira os repetidos
   private static separarAutores(texto: unknown): string[] {
     const nomes = String(texto ?? "")
       .split(/[,;\n]/)
@@ -72,7 +72,7 @@ export class ServicoLivro {
     return lista;
   }
 
-  // Valida todos os campos do livro que vieram da tela.
+  // confere todos os campos do livro
   private static validar(dados: any) {
     return {
       titulo: Validador.texto(dados?.titulo, "Título", 200)!,
@@ -86,7 +86,7 @@ export class ServicoLivro {
     };
   }
 
-  // Procura a editora pelo nome; se não existir, cria. Devolve o id.
+  // acha a editora pelo nome e se nao existir cria
   private static async acharOuCriarEditora(c: Executor, nome: string | null): Promise<number | null> {
     if (!nome) return null;
     const achadas = await c.consultar<{ id: number }>("SELECT id FROM editora WHERE nome = ?", [nome]);
@@ -95,7 +95,7 @@ export class ServicoLivro {
     return resultado.insertId;
   }
 
-  // Refaz a ligação livro <-> autores (criando os autores que ainda não existem).
+  // apaga os autores do livro e grava de novo criando autor novo se precisar
   private static async gravarAutores(c: Executor, livroId: number, autores: string[]): Promise<void> {
     await c.executar("DELETE FROM livro_autor WHERE livro_id = ?", [livroId]);
     for (const nome of autores) {
@@ -110,7 +110,7 @@ export class ServicoLivro {
     }
   }
 
-  // CREATE: cadastra um livro (e cria editora/autores novos se preciso), tudo numa transação.
+  // cadastra um livro novo com editora e autores numa transacao
   static async criar(dados: any): Promise<{ id: number }> {
     const livro = ServicoLivro.validar(dados);
     return Banco.transacao(async (c) => {
@@ -125,7 +125,7 @@ export class ServicoLivro {
     });
   }
 
-  // UPDATE: altera um livro.
+  // edita o livro e regrava os autores
   static async atualizar(dados: any): Promise<void> {
     const id = Validador.inteiro(dados?.id, "Livro");
     const livro = ServicoLivro.validar(dados);
@@ -141,7 +141,7 @@ export class ServicoLivro {
     });
   }
 
-  // DELETE: exclui um livro que nunca foi emprestado nem reservado.
+  // apaga o livro so se ele nunca foi emprestado nem reservado
   static async excluir(idBruto: unknown): Promise<void> {
     const id = Validador.inteiro(idBruto, "Livro");
     const historico = await Banco.consultar<{ total: number }>(
@@ -155,10 +155,11 @@ export class ServicoLivro {
     await Banco.executar("DELETE FROM livro WHERE id = ?", [id]);
   }
 
-  // Usa as APIs externas para achar os dados do livro pelo ISBN.
+  // busca o isbn nas apis e conta quantas copias desse livro ja tem no acervo
   static async buscarPorIsbn(dados: any): Promise<DadosLivroIsbn & { copias_no_acervo: number }> {
     const isbn = Validador.isbn(dados?.isbn, true)!;
     let encontrado: DadosLivroIsbn | null;
+    // se a api cair pede pra preencher na mao
     try {
       encontrado = await ApiLivros.buscarPorIsbn(isbn);
     } catch (erro) {

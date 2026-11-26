@@ -1,23 +1,24 @@
+// peguei do nominatim que e a busca de endereco do openstreetmap de graca e sem chave
+// mas eles pedem no maximo 1 chamada por segundo e um user-agent dizendo quem ta usando
 import { ClienteHttp } from "./ClienteHttp";
 import { Configuracao } from "../config/Configuracao";
 import { ApiCep, EnderecoCep } from "./ApiCep";
 
+// latitude e longitude
 export interface Coordenadas {
   lat: number;
   lon: number;
 }
 
-// API 4 - LOCALIZAÇÃO (Nominatim / OpenStreetMap).
-// Finalidade: descobrir a que distância da biblioteca o leitor mora, para o
-// dono saber se a pessoa é mesmo "da região" e se compensa ir buscar o livro.
+// usa o nominatim pra achar onde fica um endereco no mapa
 export class ApiGeolocalizacao {
+  // guarda o que ja buscou e a hora da ultima chamada
   private static cache = new Map<string, Coordenadas | null>();
   private static ultimaChamada = 0;
-  private static biblioteca: { endereco: EnderecoCep; coordenadas: Coordenadas | null } | null | undefined; // undefined = ainda não calculou
+  private static biblioteca: { endereco: EnderecoCep; coordenadas: Coordenadas | null } | null | undefined;
 
-  // Transforma um endereço em latitude/longitude. Devolve null se não achar.
+  // tenta achar pela rua e se nao der tenta pelo bairro
   static async coordenadas(logradouro: string, bairro: string, cidade: string, uf: string): Promise<Coordenadas | null> {
-    // Tenta primeiro com a rua; se não achar, tenta só bairro + cidade (aproximado).
     const tentativas = [
       [logradouro, cidade, uf],
       [bairro, cidade, uf],
@@ -37,7 +38,7 @@ export class ApiGeolocalizacao {
     return null;
   }
 
-  // Faz a chamada ao Nominatim (a política deles pede 1 consulta por segundo e um User-Agent).
+  // espera 1 segundo entre chamadas porque o nominatim pede isso
   private static async buscar(consulta: string): Promise<Coordenadas | null> {
     const espera = 1100 - (Date.now() - ApiGeolocalizacao.ultimaChamada);
     if (espera > 0) await new Promise((r) => setTimeout(r, espera));
@@ -51,8 +52,7 @@ export class ApiGeolocalizacao {
     return { lat: Number(lista[0].lat), lon: Number(lista[0].lon) };
   }
 
-  // Endereço e coordenadas da própria biblioteca (calculados uma vez a partir do BIBLIOTECA_CEP).
-  // Devolve null se o CEP não estiver configurado ou não existir.
+  // acha onde fica a biblioteca usando o cep do env e guarda pra nao buscar de novo
   static async localDaBiblioteca(): Promise<{ endereco: EnderecoCep; coordenadas: Coordenadas | null } | null> {
     if (ApiGeolocalizacao.biblioteca !== undefined) return ApiGeolocalizacao.biblioteca;
     const cep = Configuracao.cepBiblioteca;
@@ -68,11 +68,11 @@ export class ApiGeolocalizacao {
       );
       return (ApiGeolocalizacao.biblioteca = { endereco, coordenadas });
     } catch {
-      return null; // não guarda a falha: tenta de novo na próxima vez
+      return null;
     }
   }
 
-  // Distância em km entre dois pontos (fórmula de Haversine).
+  // calcula a distancia em km entre dois pontos com a formula de haversine
   static distanciaKm(a: Coordenadas, b: Coordenadas): number {
     const raioTerra = 6371;
     const paraRadianos = (graus: number) => (graus * Math.PI) / 180;

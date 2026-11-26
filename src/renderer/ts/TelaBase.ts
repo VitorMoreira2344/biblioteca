@@ -1,10 +1,8 @@
-// Classe-mãe de todas as telas. Ela "escuta" cliques, envios de formulário e digitação
-// em UMA só área (raiz) e repassa para os métodos da tela. Assim não precisamos de
-// onclick="" dentro do HTML (que a política de segurança CSP bloqueia).
-//   - Qualquer elemento com data-acao="nome" dispara aoClicar("nome", id, elemento)
-//   - Todo <form> dispara aoEnviar(idDoForm, form)
+// base de todas as telas
 abstract class TelaBase {
+  // escuta os cliques envios e digitacao da tela e manda pros metodos certos
   constructor(protected raiz: HTMLElement) {
+    // clique em qualquer coisa com data-acao
     raiz.addEventListener("click", (evento) => {
       const alvo = (evento.target as HTMLElement).closest<HTMLElement>("[data-acao]");
       if (alvo && raiz.contains(alvo)) {
@@ -12,28 +10,28 @@ abstract class TelaBase {
         this.proteger(() => this.aoClicar(alvo.dataset.acao!, id, alvo));
       }
     });
+    // envio de formulario sem recarregar a pagina
     raiz.addEventListener("submit", (evento) => {
-      evento.preventDefault(); // não deixa a página recarregar
+      evento.preventDefault();
       const form = evento.target as HTMLFormElement;
       this.proteger(() => this.aoEnviar(form.id, form));
     });
+    // digitou ou mudou algum campo
     raiz.addEventListener("input", (evento) => this.aoDigitar(evento.target as HTMLInputElement));
     raiz.addEventListener("change", (evento) => this.aoDigitar(evento.target as HTMLInputElement));
   }
 
-  // Desenha a tela (cada tela implementa o seu).
+  // cada tela desenha a si mesma aqui
   abstract abrir(): Promise<void>;
 
-  // Chamado quando clicam em algo com data-acao.
+  // cada tela faz o que quiser com esses eventos
   protected async aoClicar(acao: string, id: number | null, elemento: HTMLElement): Promise<void> {}
 
-  // Chamado quando um formulário é enviado.
   protected async aoEnviar(idDoForm: string, form: HTMLFormElement): Promise<void> {}
 
-  // Chamado quando o usuário digita ou muda um campo.
   protected aoDigitar(campo: HTMLInputElement): void {}
 
-  // Executa uma ação e, se der erro, mostra a mensagem em vez de quebrar a tela.
+  // roda a acao e se der erro mostra a mensagem em vez de quebrar
   protected async proteger(acao: () => Promise<void> | void): Promise<void> {
     try {
       await acao();
@@ -42,7 +40,7 @@ abstract class TelaBase {
     }
   }
 
-  // Mostra mensagem de sucesso.
+  // mostra mensagem de sucesso
   protected sucesso(texto: string): void {
     Util.mensagem(texto);
   }

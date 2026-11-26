@@ -1,5 +1,7 @@
+// peguei do viacep que e a api de cep mais usada no brasil de graca e sem chave
 import { ClienteHttp } from "./ClienteHttp";
 
+// o endereco que a gente pega do cep
 export interface EnderecoCep {
   logradouro: string;
   bairro: string;
@@ -7,15 +9,13 @@ export interface EnderecoCep {
   uf: string;
 }
 
-// API 2 - ENDEREÇO PELO CEP (ViaCEP).
-// Finalidade: ao cadastrar o leitor, digitar o CEP preenche o endereço e
-// confirma que o CEP existe de verdade.
+// conversa com o viacep
 export class ApiCep {
-  // Devolve o endereço do CEP, ou null se o CEP não existe.
-  // Lança ErroApi se o serviço estiver fora do ar.
+  // busca o endereco do cep e devolve null se o cep nao existe
   static async consultar(cep: string): Promise<EnderecoCep | null> {
     const json = await ClienteHttp.obterJson<any>(`https://viacep.com.br/ws/${cep}/json/`);
-    if (json.erro) return null; // o ViaCEP responde {"erro": true} para CEP inexistente
+    if (json.erro) return null;
+    // pega so os campos que interessam
     return {
       logradouro: String(json.logradouro ?? ""),
       bairro: String(json.bairro ?? ""),

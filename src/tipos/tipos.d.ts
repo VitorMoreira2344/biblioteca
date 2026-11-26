@@ -1,47 +1,48 @@
-// ============================================================
-// Tipos compartilhados entre o processo principal (main) e a tela (renderer).
-// Como este arquivo não tem import/export, tudo aqui é GLOBAL.
-// ============================================================
-
-// Todo canal IPC responde neste formato: ou deu certo (ok) ou veio uma mensagem de erro.
+// resposta que toda rota devolve pra tela
 interface RespostaIpc<T = any> {
   ok: boolean;
   dados?: T;
   erro?: string;
 }
 
+// os dois perfis de quem usa o sistema
 type PerfilAcesso = "administrador" | "bibliotecario";
 
+// usuario do sistema
 interface UsuarioSistema {
   id: number;
   nome: string;
   login: string;
   perfil: PerfilAcesso;
   ativo: number;
-  senha?: string; // só vem do formulário, nunca é devolvido pelo banco
+  senha?: string;
 }
 
+// autor
 interface Autor {
   id: number;
   nome: string;
   nacionalidade: string | null;
 }
 
+// editora
 interface Editora {
   id: number;
   nome: string;
   cidade: string | null;
 }
 
+// situacao de um livro
 type StatusLivro = "disponivel" | "emprestado" | "reservado";
 
+// livro com os dados prontos pra mostrar
 interface Livro {
   id: number;
   titulo: string;
   isbn: string | null;
   editora_id: number | null;
-  editora: string | null; // nome da editora (vem do JOIN)
-  autores: string; // nomes separados por vírgula
+  editora: string | null;
+  autores: string;
   ano_publicacao: number | null;
   paginas: number | null;
   capa_url: string | null;
@@ -52,7 +53,7 @@ interface Livro {
   reservas_ativas: number;
 }
 
-// O que as APIs de ISBN devolvem para preencher o cadastro do livro.
+// o que as apis devolvem quando busca o isbn
 interface DadosLivroIsbn {
   titulo: string;
   autores: string[];
@@ -60,14 +61,15 @@ interface DadosLivroIsbn {
   ano_publicacao: number | null;
   paginas: number | null;
   capa_url: string | null;
-  fonte: string; // "Open Library" ou "Google Books"
+  fonte: string;
 }
 
+// leitor e o cpf completo so vem quando vai editar
 interface Usuario {
   id: number;
   nome: string;
-  cpf?: string; // CPF completo: só vem ao abrir UM usuário para editar
-  cpf_mascarado?: string; // ***.456.789-** (usado nas listas)
+  cpf?: string;
+  cpf_mascarado?: string;
   email: string;
   telefone: string | null;
   cep: string;
@@ -80,6 +82,7 @@ interface Usuario {
   distancia_km: number | null;
 }
 
+// resposta da busca de cep com o aviso de distancia
 interface ResultadoCep {
   status: "ok" | "inexistente" | "indisponivel";
   endereco?: { logradouro: string; bairro: string; cidade: string; uf: string };
@@ -89,6 +92,7 @@ interface ResultadoCep {
   aviso?: string;
 }
 
+// emprestimo com os dados do leitor pra cobrar
 interface Emprestimo {
   id: number;
   livro_id: number;
@@ -97,7 +101,7 @@ interface Emprestimo {
   usuario_nome: string;
   telefone: string | null;
   email: string;
-  endereco: string; // endereço do leitor (para o dono ir cobrar/buscar)
+  endereco: string;
   data_retirada: string;
   data_prevista: string;
   data_devolucao: string | null;
@@ -106,8 +110,10 @@ interface Emprestimo {
   dias_atraso: number;
 }
 
+// situacoes de uma reserva
 type StatusReserva = "aguardando" | "disponivel" | "atendida" | "expirada" | "cancelada";
 
+// reserva com a posicao na fila
 interface Reserva {
   id: number;
   livro_id: number;
@@ -121,6 +127,7 @@ interface Reserva {
   observacao: string | null;
 }
 
+// numeros e listas da tela inicial
 interface ResumoPainel {
   total_livros: number;
   livros_emprestados: number;
@@ -131,6 +138,7 @@ interface ResumoPainel {
   email_configurado: boolean;
 }
 
+// quantos avisos foram mandados numa rodada
 interface ResultadoNotificacao {
   reservas_avisadas: number;
   vencimentos_avisados: number;

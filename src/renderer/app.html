@@ -2,13 +2,14 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <!-- CSP: scripts só da aplicação; imagens (capas dos livros) podem vir de https -->
+    <!-- csp que so deixa rodar os nossos scripts mas libera imagem https pras capas -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' https: data:" />
     <title>Biblioteca Comunitária</title>
     <link rel="stylesheet" href="estilo.css" />
   </head>
   <body>
     <div class="layout">
+      <!-- menu preto da esquerda -->
       <aside class="menu">
         <h1>Biblioteca</h1>
         <div class="usuario" id="usuarioLogado"></div>
@@ -16,10 +17,13 @@
         <div class="espaco"></div>
         <button class="sair" id="btnSair">Sair</button>
       </aside>
+      <!-- aqui aparece a tela aberta -->
       <main class="conteudo" id="conteudo"></main>
     </div>
+    <!-- caixinha das mensagens de aviso e erro -->
     <div id="mensagem" class="mensagem"></div>
 
+    <!-- scripts de todas as telas e a ordem importa -->
     <script src="../../dist/renderer/js/Util.js"></script>
     <script src="../../dist/renderer/js/Servidor.js"></script>
     <script src="../../dist/renderer/js/TelaBase.js"></script>

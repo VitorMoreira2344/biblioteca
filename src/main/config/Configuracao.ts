@@ -1,27 +1,26 @@
 import * as dotenv from "dotenv";
 import * as path from "path";
 
-// Lê as configurações do arquivo .env e guarda as regras fixas do sistema.
-// Nenhuma senha fica escrita no código.
+// le o arquivo env e guarda as regras fixas da biblioteca
 export class Configuracao {
-  // ---- Regras de negócio da biblioteca (mude aqui se o dono quiser outros prazos) ----
-  static readonly PRAZO_PADRAO_DIAS = 14; // prazo padrão de um empréstimo
-  static readonly DIAS_AVISO_VENCIMENTO = 2; // avisa por e-mail quando faltam até 2 dias
-  static readonly DIAS_RETIRADA_RESERVA = 1; // quem reservou tem 1 dia para buscar o livro
-  static readonly MAX_TENTATIVAS_LOGIN = 5; // erros de senha antes de bloquear
-  static readonly BLOQUEIO_LOGIN_MINUTOS = 5; // tempo de bloqueio após errar demais
+  // regras do negocio tipo prazo de emprestimo e bloqueio de login
+  static readonly PRAZO_PADRAO_DIAS = 14;
+  static readonly DIAS_AVISO_VENCIMENTO = 2;
+  static readonly DIAS_RETIRADA_RESERVA = 1;
+  static readonly MAX_TENTATIVAS_LOGIN = 5;
+  static readonly BLOQUEIO_LOGIN_MINUTOS = 5;
 
-  // Carrega o arquivo .env que está na pasta do projeto.
+  // carrega o env da pasta do projeto
   static carregar(pastaDoProjeto: string): void {
     dotenv.config({ path: path.join(pastaDoProjeto, ".env"), quiet: true });
   }
 
-  // Lê uma variável do .env (devolve "" se não existir).
+  // le uma variavel do env e devolve vazio se nao tiver
   static variavel(nome: string): string {
     return (process.env[nome] ?? "").trim();
   }
 
-  // Dados de conexão com o MySQL.
+  // dados pra conectar no mysql
   static get banco() {
     return {
       host: Configuracao.variavel("DB_HOST"),
@@ -32,18 +31,18 @@ export class Configuracao {
     };
   }
 
-  // CEP da biblioteca (só dígitos). Pode estar vazio.
+  // cep da biblioteca so com numeros
   static get cepBiblioteca(): string {
     return Configuracao.variavel("BIBLIOTECA_CEP").replace(/\D/g, "");
   }
 
-  // Distância máxima (km) para considerar que o leitor é "da região".
+  // distancia maxima em km pra ser da regiao e o padrao e 5
   static get raioRegiaoKm(): number {
     const valor = Number(Configuracao.variavel("RAIO_REGIAO_KM"));
     return valor > 0 ? valor : 5;
   }
 
-  // Se 1, abre as ferramentas de desenvolvedor.
+  // se for 1 abre o devtools
   static get modoDev(): boolean {
     return Configuracao.variavel("MODO_DEV") === "1";
   }

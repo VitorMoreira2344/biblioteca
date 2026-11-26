@@ -1,11 +1,12 @@
-/* Visual simples: só preto e branco, sem bordas arredondadas e sem animações. */
+/* tudo quadrado sem borda arredondada */
 * { box-sizing: border-box; border-radius: 0; }
 
+/* base da pagina em preto e branco */
 body { margin: 0; font-family: Arial, Helvetica, sans-serif; font-size: 15px; color: #000; background: #fff; }
 h1, h2, h3 { margin-top: 0; }
 h2 { border-bottom: 2px solid #000; padding-bottom: 8px; }
 
-/* ---------- Estrutura da tela principal ---------- */
+/* menu da esquerda e area do conteudo */
 .layout { display: flex; height: 100vh; }
 .menu { width: 230px; background: #000; color: #fff; padding: 16px; display: flex; flex-direction: column; overflow-y: auto; }
 .menu h1 { font-size: 18px; margin-bottom: 4px; }
@@ -16,7 +17,7 @@ h2 { border-bottom: 2px solid #000; padding-bottom: 8px; }
 .menu button.sair { border: 1px solid #fff; margin-top: 12px; text-align: center; }
 .conteudo { flex: 1; overflow: auto; padding: 24px; }
 
-/* ---------- Tabelas ---------- */
+/* tabelas e linha de atrasado com fundo preto */
 table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
 th, td { border: 1px solid #000; padding: 6px 8px; text-align: left; vertical-align: top; }
 th { background: #000; color: #fff; border-color: #fff; }
@@ -25,7 +26,7 @@ tr.destaque td { font-weight: bold; }
 td.acoes { white-space: nowrap; }
 .vazio { border: 1px dashed #000; padding: 16px; text-align: center; }
 
-/* ---------- Botões e campos ---------- */
+/* botoes e campos dos formularios */
 button { background: #fff; color: #000; border: 1px solid #000; padding: 6px 12px; cursor: pointer; font-size: 14px; }
 button:hover { background: #000; color: #fff; }
 button.principal { background: #000; color: #fff; }
@@ -42,7 +43,7 @@ label { display: block; font-weight: bold; margin-bottom: 4px; }
 .barra input, .barra select { width: 320px; }
 form .botoes { display: flex; gap: 8px; margin-top: 8px; }
 
-/* ---------- Avisos ---------- */
+/* alertas cartoes da tela inicial e capas */
 .alerta { background: #000; color: #fff; padding: 12px; margin-bottom: 16px; font-weight: bold; font-size: 16px; }
 .aviso { border: 2px solid #000; padding: 10px; margin: 12px 0; }
 .cartoes { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
@@ -52,17 +53,17 @@ form .botoes { display: flex; gap: 8px; margin-top: 8px; }
 .capa { width: 40px; height: 58px; object-fit: cover; border: 1px solid #000; display: block; }
 .previa-capa { width: 90px; height: 130px; object-fit: cover; border: 1px solid #000; margin-bottom: 8px; }
 
-/* ---------- Mensagem rápida (canto da tela) ---------- */
+/* caixinha de mensagem que aparece no canto */
 .mensagem { position: fixed; right: 16px; bottom: 16px; max-width: 420px; padding: 12px 16px; border: 2px solid #000; background: #fff; color: #000; display: none; z-index: 20; }
 .mensagem.visivel { display: block; }
 .mensagem.erro { background: #000; color: #fff; border-color: #fff; }
 
-/* ---------- Caixa de confirmação ---------- */
+/* janela de confirmar sim ou nao */
 .fundo-confirmacao { position: fixed; inset: 0; background: rgba(255, 255, 255, 0.85); display: flex; align-items: center; justify-content: center; z-index: 30; }
 .caixa-confirmacao { background: #fff; border: 2px solid #000; padding: 20px; max-width: 420px; }
 .caixa-confirmacao button { margin-right: 8px; }
 
-/* ---------- Tela de login ---------- */
+/* tela de login centralizada */
 body.centralizado { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
 .caixa-login { border: 2px solid #000; padding: 28px; width: 380px; }
 .form-estreito { max-width: 460px; }

@@ -1,8 +1,9 @@
-// CRUD dos usuários que acessam o sistema (só o administrador vê esta tela).
+// tela dos usuarios do sistema e so o admin ve
 class TelaUsuariosSistema extends TelaCrud {
   protected titulo = "Usuários do sistema";
   protected nomeSingular = "usuário do sistema";
   protected canal = "usuarioSistema";
+  // campos do formulario
   protected campos: CampoCrud[] = [
     { nome: "nome", rotulo: "Nome", obrigatorio: true, maximo: 100 },
     { nome: "login", rotulo: "Login", obrigatorio: true, maximo: 50 },
@@ -32,6 +33,7 @@ class TelaUsuariosSistema extends TelaCrud {
       ],
     },
   ];
+  // colunas da tabela
   protected colunas: ColunaCrud[] = [
     { titulo: "Nome", valor: (u) => u.nome },
     { titulo: "Login", valor: (u) => u.login },

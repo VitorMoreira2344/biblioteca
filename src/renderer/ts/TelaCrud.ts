@@ -1,26 +1,26 @@
-// Descreve um campo do formulário.
+// como e um campo do formulario
 interface CampoCrud {
-  nome: string; // nome da coluna/propriedade
-  rotulo: string; // texto mostrado ao usuário
+  nome: string;
+  rotulo: string;
   tipo?: "text" | "email" | "password" | "select";
   obrigatorio?: boolean;
   maximo?: number;
-  opcoes?: { valor: string; texto: string }[]; // para tipo "select"
+  opcoes?: { valor: string; texto: string }[];
   ajuda?: string;
 }
 
-// Descreve uma coluna da tabela de listagem.
+// como e uma coluna da tabela
 interface ColunaCrud {
   titulo: string;
-  valor: (linha: any) => string; // devolve texto puro (a tela escapa)
+  valor: (linha: any) => string;
 }
 
-// Tela de CRUD genérica (lista + formulário). Autores, Editoras e Usuários do sistema
-// só precisam informar os campos e colunas; todo o resto é herdado daqui.
+// tela pronta de listar criar editar e excluir que as telas simples usam
 abstract class TelaCrud extends TelaBase {
-  protected abstract titulo: string; // "Autores"
-  protected abstract nomeSingular: string; // "autor"
-  protected abstract canal: string; // prefixo dos canais: "autor" -> "autor:listar", "autor:criar"...
+  // cada tela filha preenche essas coisas
+  protected abstract titulo: string;
+  protected abstract nomeSingular: string;
+  protected abstract canal: string;
   protected abstract campos: CampoCrud[];
   protected abstract colunas: ColunaCrud[];
   protected registros: any[] = [];
@@ -29,12 +29,12 @@ abstract class TelaCrud extends TelaBase {
     super(raiz);
   }
 
-  // Ao abrir a tela, mostra a lista.
+  // abre mostrando a lista
   async abrir(): Promise<void> {
     await this.mostrarLista();
   }
 
-  // Busca os registros e desenha a tabela.
+  // busca os registros e monta a tabela e o botao excluir so aparece pro admin
   protected async mostrarLista(): Promise<void> {
     this.registros = await Servidor.chamar<any[]>(`${this.canal}:listar`);
     const cabecalho = this.colunas.map((c) => `<th>${Util.escapar(c.titulo)}</th>`).join("");
@@ -52,7 +52,7 @@ abstract class TelaCrud extends TelaBase {
       ${this.registros.length ? `<table><thead><tr>${cabecalho}<th>Ações</th></tr></thead><tbody>${linhas}</tbody></table>` : `<div class="vazio">Nenhum registro cadastrado.</div>`}`;
   }
 
-  // Desenha o formulário (vazio para cadastrar, preenchido para editar).
+  // monta o formulario vazio pra novo ou preenchido pra editar
   protected mostrarFormulario(registro: any | null): void {
     const campos = this.campos
       .map((c) => {
@@ -64,7 +64,8 @@ abstract class TelaCrud extends TelaBase {
           entrada = `<select id="${id}" name="${c.nome}">${Util.opcoes(c.opcoes ?? [], valor)}</select>`;
         } else {
           const tipo = c.tipo ?? "text";
-          const conteudo = tipo === "password" ? "" : Util.escapar(valor); // nunca preenche senha
+          // senha nunca vem preenchida
+          const conteudo = tipo === "password" ? "" : Util.escapar(valor);
           entrada = `<input id="${id}" name="${c.nome}" type="${tipo}" value="${conteudo}" maxlength="${c.maximo ?? 100}" ${obrigatorio}>`;
         }
         const ajuda = c.ajuda ? `<div class="ajuda">${Util.escapar(c.ajuda)}</div>` : "";
@@ -81,7 +82,7 @@ abstract class TelaCrud extends TelaBase {
       </form>`;
   }
 
-  // Cliques nos botões da lista e do formulário.
+  // trata os botoes novo cancelar editar e excluir
   protected async aoClicar(acao: string, id: number | null): Promise<void> {
     if (acao === "novo") this.mostrarFormulario(null);
     else if (acao === "cancelar") await this.mostrarLista();
@@ -95,7 +96,7 @@ abstract class TelaCrud extends TelaBase {
     }
   }
 
-  // Salvar: se o formulário tem "id" é edição (UPDATE), senão é cadastro (CREATE).
+  // salva e decide se e criar ou atualizar pelo id
   protected async aoEnviar(_idDoForm: string, form: HTMLFormElement): Promise<void> {
     const dados = Util.dadosDoFormulario(form);
     if (dados.id) await Servidor.chamar(`${this.canal}:atualizar`, dados);

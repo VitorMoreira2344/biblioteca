@@ -1,18 +1,20 @@
-// Tela dos leitores (usuários da biblioteca): CPF, contato e endereço com busca de CEP.
+// tela dos leitores
 class TelaUsuarios extends TelaBase {
   private usuarios: Usuario[] = [];
+  // lembra o ultimo cep buscado pra nao buscar de novo
   private ultimoCepConsultado = "";
 
+  // guarda se e admin pra mostrar o botao excluir
   constructor(raiz: HTMLElement, private ehAdmin: boolean) {
     super(raiz);
   }
 
-  // Ao abrir, mostra a lista.
+  // abre mostrando a lista
   async abrir(): Promise<void> {
     await this.mostrarLista();
   }
 
-  // Busca os leitores e desenha a tabela.
+  // busca os leitores e desenha a barra de busca
   private async mostrarLista(): Promise<void> {
     this.usuarios = await Servidor.chamar<Usuario[]>("usuario:listar");
     this.raiz.innerHTML = `
@@ -25,7 +27,7 @@ class TelaUsuarios extends TelaBase {
     this.desenharTabela("");
   }
 
-  // Desenha a tabela aplicando o filtro de busca.
+  // monta a tabela filtrando por nome bairro ou cidade
   private desenharTabela(filtro: string): void {
     const busca = Util.semAcento(filtro.trim());
     const lista = this.usuarios.filter((u) => !busca || Util.semAcento(`${u.nome} ${u.bairro ?? ""} ${u.cidade}`).includes(busca));
@@ -47,7 +49,7 @@ class TelaUsuarios extends TelaBase {
     area.innerHTML = `<table><thead><tr><th>Nome</th><th>CPF</th><th>Contato</th><th>Endereço</th><th>Distância</th><th>Ações</th></tr></thead><tbody>${linhas}</tbody></table>`;
   }
 
-  // Digitando: filtra a busca, aplica máscaras e consulta o CEP quando completa 8 dígitos.
+  // busca enquanto digita e coloca as mascaras de cpf telefone e cep
   protected aoDigitar(campo: HTMLInputElement): void {
     if (campo.id === "busca") this.desenharTabela(campo.value);
     else if (campo.id === "cpf") campo.value = Util.mascaraCpf(campo.value);
@@ -55,6 +57,7 @@ class TelaUsuarios extends TelaBase {
     else if (campo.id === "cep") {
       campo.value = Util.mascaraCep(campo.value);
       const digitos = campo.value.replace(/\D/g, "");
+      // quando o cep fica completo busca o endereco sozinho
       if (digitos.length === 8 && digitos !== this.ultimoCepConsultado) {
         this.ultimoCepConsultado = digitos;
         this.proteger(() => this.consultarCep());
@@ -62,7 +65,7 @@ class TelaUsuarios extends TelaBase {
     }
   }
 
-  // Desenha o formulário de cadastro/edição.
+  // formulario de leitor novo ou de editar
   private async mostrarFormulario(id: number | null): Promise<void> {
     const u = id ? await Servidor.chamar<Usuario>("usuario:obter", { id }) : null;
     const v = (valor: unknown) => Util.escapar(valor ?? "");
@@ -92,7 +95,7 @@ class TelaUsuarios extends TelaBase {
       </form>`;
   }
 
-  // Consulta o CEP (API ViaCEP) e diz se o leitor mora perto da biblioteca.
+  // busca o cep e preenche rua bairro cidade e uf
   private async consultarCep(): Promise<void> {
     const cep = Util.porId<HTMLInputElement>("cep").value;
     const info = Util.porId("infoCep");
@@ -114,7 +117,7 @@ class TelaUsuarios extends TelaBase {
     }
   }
 
-  // Cliques da tela.
+  // trata os botoes novo editar cancelar buscar cep e excluir
   protected async aoClicar(acao: string, id: number | null): Promise<void> {
     if (acao === "novo") await this.mostrarFormulario(null);
     else if (acao === "editar") await this.mostrarFormulario(id);
@@ -129,7 +132,7 @@ class TelaUsuarios extends TelaBase {
     }
   }
 
-  // Salvar o formulário (cadastro ou edição).
+  // salva o leitor novo ou a edicao
   protected async aoEnviar(_idDoForm: string, form: HTMLFormElement): Promise<void> {
     const dados = Util.dadosDoFormulario(form);
     if (dados.id) await Servidor.chamar("usuario:atualizar", dados);

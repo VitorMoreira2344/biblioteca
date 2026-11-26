@@ -8,11 +8,12 @@ import { ServicoUsuario } from "./ServicoUsuario";
 import { ServicoReserva } from "./ServicoReserva";
 import { ServicoNotificacao } from "./ServicoNotificacao";
 
+// filtros da lista de emprestimos
 export type FiltroEmprestimo = "todos" | "ativos" | "atrasados" | "devolvidos";
 
-// EMPRÉSTIMOS: cadastrar, listar, renovar prazo, devolver e excluir.
+// crud dos emprestimos e a devolucao
 export class ServicoEmprestimo {
-  // Consulta base: empréstimo + título do livro + dados do leitor.
+  // select que traz o emprestimo com o livro e os dados do leitor pra cobrar
   private static readonly SQL_BASE = `
     SELECT e.id, e.livro_id, e.usuario_id, l.titulo, u.nome AS usuario_nome, u.telefone, u.email,
            u.logradouro, u.numero, u.complemento, u.bairro, u.cidade, u.uf,
@@ -21,7 +22,7 @@ export class ServicoEmprestimo {
       JOIN livro l ON l.id = e.livro_id
       JOIN usuario u ON u.id = e.usuario_id`;
 
-  // Transforma a linha do banco em Emprestimo e calcula se está ATRASADO.
+  // monta o emprestimo e calcula se ta atrasado e quantos dias
   private static montar(linha: any): Emprestimo {
     const hoje = Datas.hoje();
     const atrasado = !linha.data_devolucao && linha.data_prevista < hoje;
@@ -43,7 +44,7 @@ export class ServicoEmprestimo {
     };
   }
 
-  // READ: lista empréstimos. Os ativos vêm primeiro, o mais atrasado no topo.
+  // lista os emprestimos com o filtro escolhido e os abertos que vencem antes vem primeiro
   static async listar(filtroBruto: unknown = "todos"): Promise<Emprestimo[]> {
     const filtro = String(filtroBruto) as FiltroEmprestimo;
     let where = "";
@@ -64,7 +65,7 @@ export class ServicoEmprestimo {
     return linhas.map(ServicoEmprestimo.montar);
   }
 
-  // READ: um empréstimo pelo id.
+  // pega um emprestimo pelo id
   static async obter(idBruto: unknown): Promise<Emprestimo> {
     const id = Validador.inteiro(idBruto, "Empréstimo");
     const linhas = await Banco.consultar(`${ServicoEmprestimo.SQL_BASE} WHERE e.id = ?`, [id]);
@@ -72,37 +73,39 @@ export class ServicoEmprestimo {
     return ServicoEmprestimo.montar(linhas[0]);
   }
 
-  // Sugere o prazo de devolução (hoje + prazo padrão), pulando feriados (API de feriados).
+  // prazo padrao de 14 dias pulando feriado
   static async sugerirPrazo(): Promise<{ data: string; ajustada: boolean; motivo: string | null }> {
     const base = Datas.somarDias(Datas.hoje(), Configuracao.PRAZO_PADRAO_DIAS);
     return ApiFeriados.proximoDiaLivre(base);
   }
 
-  // CREATE: registra a retirada de um livro. Aplica as regras:
-  //  - livro não pode estar emprestado;
-  //  - se está reservado para outra pessoa, não pode ser emprestado;
-  //  - se está reservado para este mesmo leitor, a reserva vira "atendida".
+  // faz um emprestimo novo
   static async criar(dados: any): Promise<{ id: number; aviso: string | null }> {
     const livroId = Validador.inteiro(dados?.livro_id, "Livro");
     const usuarioId = Validador.inteiro(dados?.usuario_id, "Usuário");
     const observacao = Validador.texto(dados?.observacao, "Observação", 255, false);
     const hoje = Datas.hoje();
 
+    // usa o prazo da tela ou o padrao e empurra se cair em feriado
     const prazoInformado = dados?.data_prevista ? Validador.data(dados.data_prevista, "Prazo de devolução") : (await ServicoEmprestimo.sugerirPrazo()).data;
     if (prazoInformado < hoje) throw new ErroNegocio("O prazo de devolução não pode ser anterior a hoje.");
     const prazo = await ApiFeriados.proximoDiaLivre(prazoInformado);
 
-    await ServicoReserva.expirarVencidas(); // garante que reservas vencidas não bloqueiem o livro
+    // antes de tudo expira reservas vencidas
+    await ServicoReserva.expirarVencidas();
 
+    // transacao com o livro travado pra dois nao emprestarem o mesmo ao mesmo tempo
     const id = await Banco.transacao(async (c) => {
       const livros = await c.consultar("SELECT id FROM livro WHERE id = ? FOR UPDATE", [livroId]);
       if (!livros.length) throw new ErroNegocio("Livro não encontrado.");
       const usuarios = await c.consultar("SELECT id FROM usuario WHERE id = ?", [usuarioId]);
       if (!usuarios.length) throw new ErroNegocio("Usuário não encontrado.");
 
+      // livro ja emprestado nao sai de novo
       const ativos = await c.consultar("SELECT id FROM emprestimo WHERE livro_id = ? AND data_devolucao IS NULL", [livroId]);
       if (ativos.length) throw new ErroNegocio("Este livro já está emprestado.");
 
+      // se o livro ta reservado so quem reservou pode pegar e a reserva vira atendida
       const reservas = await c.consultar<any>(
         `SELECT r.id, r.usuario_id, r.data_limite, u.nome
            FROM reserva r JOIN usuario u ON u.id = r.usuario_id
@@ -124,10 +127,11 @@ export class ServicoEmprestimo {
       return resultado.insertId;
     });
 
+    // avisa na tela se o prazo mudou por causa de feriado
     return { id, aviso: prazo.ajustada ? `Prazo ajustado para ${Datas.paraBR(prazo.data)}: ${prazo.motivo}.` : null };
   }
 
-  // UPDATE: renova o prazo ou altera a observação de um empréstimo que ainda está ativo.
+  // renova ou muda a observacao de um emprestimo aberto
   static async atualizar(dados: any): Promise<{ aviso: string | null }> {
     const id = Validador.inteiro(dados?.id, "Empréstimo");
     const observacao = Validador.texto(dados?.observacao, "Observação", 255, false);
@@ -138,7 +142,7 @@ export class ServicoEmprestimo {
     if (prazoInformado < atual.data_retirada) throw new ErroNegocio("O prazo não pode ser anterior à data de retirada.");
 
     const prazo = await ApiFeriados.proximoDiaLivre(prazoInformado);
-    // Se o prazo mudou, o aviso de vencimento precisa ser enviado de novo (aviso_enviado = 0).
+    // se o prazo mudou libera mandar o aviso de novo
     await Banco.executar(
       `UPDATE emprestimo
           SET data_prevista = ?, observacao = ?,
@@ -149,8 +153,7 @@ export class ServicoEmprestimo {
     return { aviso: prazo.ajustada ? `Prazo ajustado para ${Datas.paraBR(prazo.data)}: ${prazo.motivo}.` : null };
   }
 
-  // Registra a devolução. Se alguém reservou o livro, a reserva passa a "disponivel"
-  // e o aviso por e-mail é enviado.
+  // devolve o livro passa pro proximo da fila e manda os avisos
   static async devolver(idBruto: unknown): Promise<{ reserva_para: string | null; notificacao: ResultadoNotificacao }> {
     const id = Validador.inteiro(idBruto, "Empréstimo");
     const reservaPara = await Banco.transacao(async (c) => {
@@ -161,11 +164,11 @@ export class ServicoEmprestimo {
       const promovida = await ServicoReserva.promoverProximo(linhas[0].livro_id, c);
       return promovida ? promovida.usuario_nome : null;
     });
-    const notificacao = await ServicoNotificacao.processar(); // envia o e-mail para quem reservou
+    const notificacao = await ServicoNotificacao.processar();
     return { reserva_para: reservaPara, notificacao };
   }
 
-  // DELETE: apaga o registro de um empréstimo (só administrador). Se estava ativo, o livro volta ao acervo.
+  // apaga o emprestimo e se tava aberto libera o livro pra fila
   static async excluir(idBruto: unknown): Promise<void> {
     const id = Validador.inteiro(idBruto, "Empréstimo");
     await Banco.transacao(async (c) => {

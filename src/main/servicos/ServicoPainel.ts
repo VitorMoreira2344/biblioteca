@@ -5,19 +5,22 @@ import { ServicoEmprestimo } from "./ServicoEmprestimo";
 import { ServicoReserva } from "./ServicoReserva";
 import { ServicoEmail } from "./ServicoEmail";
 
-// Dados da tela inicial: números gerais e, principalmente, quem está ATRASADO.
+// monta os numeros e listas da tela inicial
 export class ServicoPainel {
-  // Monta o resumo do painel.
+  // junta tudo que aparece no painel
   static async resumo(): Promise<ResumoPainel> {
+    // conta livros emprestados e leitores numa consulta so
     const totais = await Banco.consultar<any>(
       `SELECT (SELECT COUNT(*) FROM livro) AS total_livros,
               (SELECT COUNT(DISTINCT livro_id) FROM emprestimo WHERE data_devolucao IS NULL) AS livros_emprestados,
               (SELECT COUNT(*) FROM usuario) AS total_usuarios`,
     );
+    // pega os emprestimos ativos e as reservas pra separar depois
     const ativos = await ServicoEmprestimo.listar("ativos");
     const limite = Datas.somarDias(Datas.hoje(), Configuracao.DIAS_AVISO_VENCIMENTO);
     const reservas = await ServicoReserva.listar();
 
+    // separa quem ta atrasado quem vence logo e reserva esperando retirada
     return {
       total_livros: Number(totais[0].total_livros),
       livros_emprestados: Number(totais[0].livros_emprestados),

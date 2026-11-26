@@ -1,7 +1,7 @@
+// ponte entre a tela e o processo principal
 import { contextBridge, ipcRenderer } from "electron";
 
-// O preload é a "ponte" entre a tela e o processo principal.
-// Só expõe UMA função (chamar). A tela não recebe acesso ao Node nem ao ipcRenderer inteiro.
+// a tela so ganha uma funcao chamada api chamar e mais nada do node
 contextBridge.exposeInMainWorld("api", {
   chamar: (canal: string, dados?: unknown) => ipcRenderer.invoke(canal, dados),
 });

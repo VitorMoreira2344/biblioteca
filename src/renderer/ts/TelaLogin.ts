@@ -1,13 +1,13 @@
-// Tela de login. No primeiro acesso (sem nenhum administrador) pede para criar o administrador.
+// tela de login
 class TelaLogin extends TelaBase {
-  // Decide qual formulário mostrar.
+  // se ja tem admin mostra o login e se nao tem pede pra criar o primeiro
   async abrir(): Promise<void> {
     const existeAdmin = await Servidor.chamar<boolean>("acesso:existeAdmin");
     if (existeAdmin) this.mostrarLogin();
     else this.mostrarPrimeiroAcesso();
   }
 
-  // Formulário de entrada.
+  // formulario de login normal
   private mostrarLogin(): void {
     this.raiz.innerHTML = `
       <form id="formLogin">
@@ -17,7 +17,7 @@ class TelaLogin extends TelaBase {
       </form>`;
   }
 
-  // Formulário do primeiro administrador.
+  // formulario do primeiro acesso pra criar o admin
   private mostrarPrimeiroAcesso(): void {
     this.raiz.innerHTML = `
       <div class="aviso">Primeiro acesso: crie o usuário administrador do sistema.</div>
@@ -31,7 +31,7 @@ class TelaLogin extends TelaBase {
       </form>`;
   }
 
-  // Trata o envio dos dois formulários.
+  // cria o admin se for o caso e ja faz o login e vai pro app
   protected async aoEnviar(idDoForm: string, form: HTMLFormElement): Promise<void> {
     const dados = Util.dadosDoFormulario(form);
     if (idDoForm === "formPrimeiroAdmin") {
@@ -39,8 +39,9 @@ class TelaLogin extends TelaBase {
       await Servidor.chamar("acesso:criarPrimeiroAdmin", dados);
     }
     await Servidor.chamar("acesso:entrar", { login: dados.login, senha: dados.senha });
-    window.location.href = "app.html"; // login ok: vai para a tela principal
+    window.location.href = "app.html";
   }
 }
 
+// abre a tela de login quando a pagina carrega
 new TelaLogin(Util.porId("areaLogin")).abrir().catch((erro) => Util.mensagem(erro.message, true));

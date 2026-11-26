@@ -11,16 +11,12 @@ import { ServicoReserva } from "../servicos/ServicoReserva";
 import { ServicoPainel } from "../servicos/ServicoPainel";
 import { ServicoNotificacao } from "../servicos/ServicoNotificacao";
 
-// Quem pode chamar cada rota:
-//  "publico" = qualquer um (tela de login)
-//  "logado"  = bibliotecário ou administrador
-//  "admin"   = só administrador
+// quem pode chamar cada rota
 type Permissao = "publico" | "logado" | "admin";
 
-// Liga os "canais" que a tela chama aos serviços do sistema.
-// A verificação de permissão é feita AQUI (no processo principal), nunca só na tela.
+// liga os pedidos da tela aos servicos
 export class Rotas {
-  // Registra um canal, já com checagem de permissão e tratamento de erro.
+  // registra um canal e checa a permissao antes de rodar
   private static registrar(canal: string, permissao: Permissao, funcao: (dados: any) => Promise<any> | any): void {
     ipcMain.handle(canal, async (_evento, dados): Promise<RespostaIpc> => {
       try {
@@ -38,7 +34,7 @@ export class Rotas {
     });
   }
 
-  // Converte um erro em mensagem segura para a tela (detalhes técnicos ficam só no console).
+  // erro de regra vai pra tela e erro tecnico fica no console com uma mensagem generica
   private static traduzirErro(erro: any): string {
     if (erro instanceof ErroNegocio) return erro.message;
     console.error("Erro interno:", erro);
@@ -47,36 +43,36 @@ export class Rotas {
     return "Ocorreu um erro inesperado. Tente novamente.";
   }
 
-  // Cadastra todos os canais do sistema.
+  // todas as rotas do sistema
   static registrarTodas(): void {
     const r = Rotas.registrar;
 
-    // ----- Acesso (login) -----
+    // login e primeiro admin
     r("acesso:existeAdmin", "publico", () => ServicoAcesso.existeAdministrador());
     r("acesso:criarPrimeiroAdmin", "publico", (d) => ServicoAcesso.criarPrimeiroAdministrador(d));
     r("acesso:entrar", "publico", (d) => ServicoAcesso.entrar(d));
     r("acesso:sair", "publico", () => ServicoAcesso.sair());
     r("acesso:sessao", "publico", () => Sessao.obter());
 
-    // ----- Usuários do sistema (só administrador) -----
+    // usuarios do sistema e so admin mexe
     r("usuarioSistema:listar", "admin", () => ServicoAcesso.listar());
     r("usuarioSistema:criar", "admin", (d) => ServicoAcesso.criar(d));
     r("usuarioSistema:atualizar", "admin", (d) => ServicoAcesso.atualizar(d));
     r("usuarioSistema:excluir", "admin", (d) => ServicoAcesso.excluir(d?.id));
 
-    // ----- Autores -----
+    // autores
     r("autor:listar", "logado", () => ServicoAutor.listar());
     r("autor:criar", "logado", (d) => ServicoAutor.criar(d));
     r("autor:atualizar", "logado", (d) => ServicoAutor.atualizar(d));
     r("autor:excluir", "admin", (d) => ServicoAutor.excluir(d?.id));
 
-    // ----- Editoras -----
+    // editoras
     r("editora:listar", "logado", () => ServicoEditora.listar());
     r("editora:criar", "logado", (d) => ServicoEditora.criar(d));
     r("editora:atualizar", "logado", (d) => ServicoEditora.atualizar(d));
     r("editora:excluir", "admin", (d) => ServicoEditora.excluir(d?.id));
 
-    // ----- Livros -----
+    // livros
     r("livro:listar", "logado", () => ServicoLivro.listar());
     r("livro:obter", "logado", (d) => ServicoLivro.obter(d?.id));
     r("livro:criar", "logado", (d) => ServicoLivro.criar(d));
@@ -84,7 +80,7 @@ export class Rotas {
     r("livro:excluir", "admin", (d) => ServicoLivro.excluir(d?.id));
     r("livro:buscarIsbn", "logado", (d) => ServicoLivro.buscarPorIsbn(d));
 
-    // ----- Usuários da biblioteca (leitores) -----
+    // leitores
     r("usuario:listar", "logado", () => ServicoUsuario.listar());
     r("usuario:obter", "logado", (d) => ServicoUsuario.obter(d?.id));
     r("usuario:criar", "logado", (d) => ServicoUsuario.criar(d));
@@ -92,7 +88,7 @@ export class Rotas {
     r("usuario:excluir", "admin", (d) => ServicoUsuario.excluir(d?.id));
     r("usuario:consultarCep", "logado", (d) => ServicoUsuario.consultarCep(d));
 
-    // ----- Empréstimos -----
+    // emprestimos
     r("emprestimo:listar", "logado", (d) => ServicoEmprestimo.listar(d?.filtro));
     r("emprestimo:obter", "logado", (d) => ServicoEmprestimo.obter(d?.id));
     r("emprestimo:criar", "logado", (d) => ServicoEmprestimo.criar(d));
@@ -101,7 +97,7 @@ export class Rotas {
     r("emprestimo:excluir", "admin", (d) => ServicoEmprestimo.excluir(d?.id));
     r("emprestimo:sugerirPrazo", "logado", () => ServicoEmprestimo.sugerirPrazo());
 
-    // ----- Reservas -----
+    // reservas
     r("reserva:listar", "logado", () => ServicoReserva.listar());
     r("reserva:obter", "logado", (d) => ServicoReserva.obter(d?.id));
     r("reserva:criar", "logado", (d) => ServicoReserva.criar(d));
@@ -109,7 +105,7 @@ export class Rotas {
     r("reserva:excluir", "admin", (d) => ServicoReserva.excluir(d?.id));
     r("reserva:emprestar", "logado", (d) => ServicoReserva.emprestar(d));
 
-    // ----- Painel e avisos -----
+    // tela inicial e envio de avisos
     r("painel:resumo", "logado", () => ServicoPainel.resumo());
     r("notificacao:processar", "logado", () => ServicoNotificacao.processar());
   }

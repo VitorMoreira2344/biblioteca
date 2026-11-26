@@ -1,17 +1,18 @@
-// Tela de reservas: fila de espera por livros emprestados.
+// tela das reservas
 class TelaReservas extends TelaBase {
   private reservas: Reserva[] = [];
 
+  // guarda se e admin pra mostrar o botao excluir
   constructor(raiz: HTMLElement, private ehAdmin: boolean) {
     super(raiz);
   }
 
-  // Ao abrir, mostra a lista.
+  // abre mostrando a lista
   async abrir(): Promise<void> {
     await this.mostrarLista();
   }
 
-  // Texto da situação da reserva.
+  // texto da situacao de cada reserva
   private situacao(r: Reserva): string {
     if (r.status === "aguardando") return `Na fila (posição ${r.posicao_fila}): livro ainda está emprestado`;
     if (r.status === "disponivel") return `LIVRO DISPONÍVEL: retirar até ${Util.dataBR(r.data_limite)}`;
@@ -20,7 +21,7 @@ class TelaReservas extends TelaBase {
     return "Cancelada";
   }
 
-  // Busca as reservas e desenha a tabela.
+  // busca as reservas e monta a tabela com as disponiveis em destaque
   private async mostrarLista(): Promise<void> {
     this.reservas = await Servidor.chamar<Reserva[]>("reserva:listar");
     const linhas = this.reservas
@@ -42,7 +43,7 @@ class TelaReservas extends TelaBase {
       ${this.reservas.length ? `<table><thead><tr><th>Livro</th><th>Leitor</th><th>Reservado em</th><th>Situação</th><th>Observação</th><th>Ações</th></tr></thead><tbody>${linhas}</tbody></table>` : `<div class="vazio">Nenhuma reserva cadastrada.</div>`}`;
   }
 
-  // Formulário de NOVA reserva (só livros que não estão na estante).
+  // formulario de reserva nova e so mostra livro que ta fora da estante
   private async mostrarFormularioNovo(): Promise<void> {
     const [livros, usuarios] = await Promise.all([Servidor.chamar<Livro[]>("livro:listar"), Servidor.chamar<Usuario[]>("usuario:listar")]);
     const indisponiveis = livros.filter((l) => l.status !== "disponivel").map((l) => ({ valor: l.id, texto: `${l.titulo} (${l.status === "emprestado" ? "emprestado" : "reservado"})` }));
@@ -61,7 +62,7 @@ class TelaReservas extends TelaBase {
       </form>`;
   }
 
-  // Formulário de edição: observação e opção de cancelar.
+  // formulario de editar com a opcao de cancelar se a reserva ta ativa
   private mostrarFormularioEdicao(r: Reserva): void {
     const ativa = r.status === "aguardando" || r.status === "disponivel";
     this.raiz.innerHTML = `
@@ -77,7 +78,7 @@ class TelaReservas extends TelaBase {
       </form>`;
   }
 
-  // Cliques da tela.
+  // trata os botoes novo voltar editar emprestar e excluir
   protected async aoClicar(acao: string, id: number | null): Promise<void> {
     if (acao === "novo") await this.mostrarFormularioNovo();
     else if (acao === "cancelar" || acao === "voltar") await this.mostrarLista();
@@ -100,7 +101,7 @@ class TelaReservas extends TelaBase {
     }
   }
 
-  // Salvar (nova ou edição).
+  // salva a reserva nova ou a edicao
   protected async aoEnviar(idDoForm: string, form: HTMLFormElement): Promise<void> {
     const dados = Util.dadosDoFormulario(form);
     if (idDoForm === "formNovaReserva") await Servidor.chamar("reserva:criar", dados);

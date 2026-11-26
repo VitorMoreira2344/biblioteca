@@ -1,27 +1,26 @@
-// Funções de apoio usadas por todas as telas.
+// funcoes pequenas usadas em todas as telas
 class Util {
-  // Troca <, >, &, aspas por códigos seguros. TODO texto vindo do banco ou de APIs
-  // passa por aqui antes de entrar no HTML (isso impede ataques XSS).
+  // escapa o html pra ninguem conseguir enfiar codigo na tela
   static escapar(valor: unknown): string {
     const trocas: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
     return String(valor ?? "").replace(/[&<>"']/g, (c) => trocas[c]);
   }
 
-  // "2026-11-26" -> "26/11/2026".
+  // data no jeito brasileiro
   static dataBR(iso: string | null | undefined): string {
     if (!iso) return "";
     const [ano, mes, dia] = iso.split("-");
     return `${dia}/${mes}/${ano}`;
   }
 
-  // Procura um elemento da página pelo id (dá erro claro se não existir).
+  // pega um elemento pelo id ou reclama
   static porId<T extends HTMLElement = HTMLElement>(id: string): T {
     const elemento = document.getElementById(id);
     if (!elemento) throw new Error(`Elemento #${id} não encontrado na página.`);
     return elemento as T;
   }
 
-  // Mostra uma mensagem rápida no canto da tela (preta = erro).
+  // mostra uma mensagem no canto que some sozinha
   static mensagem(texto: string, erro = false): void {
     const caixa = Util.porId("mensagem");
     caixa.textContent = texto;
@@ -30,7 +29,7 @@ class Util {
     (Util as any).temporizador = window.setTimeout(() => (caixa.className = "mensagem"), erro ? 7000 : 4000);
   }
 
-  // Pergunta "Tem certeza?" e devolve true (Sim) ou false (Não).
+  // janelinha de sim ou nao que devolve a resposta
   static confirmar(texto: string): Promise<boolean> {
     return new Promise((resolve) => {
       const fundo = document.createElement("div");
@@ -45,16 +44,16 @@ class Util {
         }
       });
       document.body.appendChild(fundo);
-      (document.getElementById("btnNao") as HTMLElement).focus(); // o foco começa no "Não", por segurança
+      (document.getElementById("btnNao") as HTMLElement).focus();
     });
   }
 
-  // Lê todos os campos de um formulário e devolve um objeto { nome: valor }.
+  // pega os campos do formulario num objeto
   static dadosDoFormulario(form: HTMLFormElement): Record<string, any> {
     return Object.fromEntries(new FormData(form));
   }
 
-  // Monta as <option> de um <select>.
+  // monta as opcoes de um select
   static opcoes(lista: { valor: string | number; texto: string }[], selecionado: unknown = null, vazio: string | null = null): string {
     const inicio = vazio !== null ? `<option value="">${Util.escapar(vazio)}</option>` : "";
     return (
@@ -65,12 +64,12 @@ class Util {
     );
   }
 
-  // Tira acentos e deixa minúsculo (para a busca ignorar maiúsculas e acentos).
+  // tira acento e deixa minusculo pra busca
   static semAcento(texto: string): string {
     return texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   }
 
-  // "19999998888" -> "(19) 99999-8888".
+  // formata o telefone com ddd
   static telefoneBR(digitos: string | null): string {
     const d = (digitos ?? "").replace(/\D/g, "");
     if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
@@ -78,19 +77,19 @@ class Util {
     return d;
   }
 
-  // Máscara de CPF enquanto digita: 123.456.789-09.
+  // mascara do cpf enquanto digita
   static mascaraCpf(valor: string): string {
     const d = valor.replace(/\D/g, "").slice(0, 11);
     return d.replace(/^(\d{3})(\d)/, "$1.$2").replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3").replace(/\.(\d{3})(\d)/, ".$1-$2");
   }
 
-  // Máscara de CEP enquanto digita: 13010-111.
+  // mascara do cep enquanto digita
   static mascaraCep(valor: string): string {
     const d = valor.replace(/\D/g, "").slice(0, 8);
     return d.replace(/^(\d{5})(\d)/, "$1-$2");
   }
 
-  // Máscara de telefone enquanto digita.
+  // mascara do telefone enquanto digita
   static mascaraTelefone(valor: string): string {
     return Util.telefoneBR(valor.replace(/\D/g, "").slice(0, 11)) || valor.replace(/\D/g, "");
   }
