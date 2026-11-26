@@ -20,6 +20,8 @@ export class JanelaPrincipal {
       minHeight: 600,
       title: "Biblioteca Comunitária",
       backgroundColor: "#ffffff",
+      // iconezinho do livro que aparece na janela e na barra de tarefas
+      icon: path.join(pastaDoProjeto, "assets", "icone.png"),
       // tela isolada sem node e em sandbox pra ficar seguro
       webPreferences: {
         preload: path.join(__dirname, "preload.js"),
